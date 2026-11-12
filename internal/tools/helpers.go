@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -219,11 +220,9 @@ func jsonResult(v interface{}) map[string]interface{} {
 }
 
 func rawResult(b []byte) map[string]interface{} {
-	var v interface{}
-	if err := json.Unmarshal(b, &v); err == nil {
-		if pretty, err := json.MarshalIndent(v, "", "  "); err == nil {
-			return mcp.ToolResultText(string(pretty))
-		}
+	var pretty bytes.Buffer
+	if err := json.Indent(&pretty, b, "", "  "); err == nil {
+		return mcp.ToolResultText(pretty.String())
 	}
 	return mcp.ToolResultText(string(b))
 }

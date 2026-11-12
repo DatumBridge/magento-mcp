@@ -1,10 +1,12 @@
 package mcp
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
+	"unicode"
 
 	"github.com/rs/zerolog/log"
 )
@@ -180,33 +182,83 @@ func ToolResultError(text string) map[string]interface{} {
 	}
 }
 
+type rpcSuccess struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      json.RawMessage `json:"id,omitempty"`
+	Result  json.RawMessage `json:"result"`
+}
+
+type rpcFailure struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      json.RawMessage `json:"id,omitempty"`
+	Error   rpcErrorBody    `json:"error"`
+}
+
+type rpcErrorBody struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+// jsonRPCID accepts a JSON-RPC id that is a string or a number.
+// Objects and arrays are refused so the id is never decoded into an open type.
+func jsonRPCID(id json.RawMessage) json.RawMessage {
+	trimmed := bytes.TrimSpace(id)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) || !json.Valid(trimmed) {
+		return nil
+	}
+	switch trimmed[0] {
+	case '"':
+		var s string
+		if err := json.Unmarshal(trimmed, &s); err != nil {
+			return nil
+		}
+		out, err := json.Marshal(s)
+		if err != nil {
+			return nil
+		}
+		return out
+	default:
+		if trimmed[0] != '-' && !unicode.IsDigit(rune(trimmed[0])) {
+			return nil
+		}
+		dec := json.NewDecoder(bytes.NewReader(trimmed))
+		dec.UseNumber()
+		var n json.Number
+		if err := dec.Decode(&n); err != nil || !json.Valid([]byte(n.String())) {
+			return nil
+		}
+		var trail json.RawMessage
+		if err := dec.Decode(&trail); err != io.EOF {
+			return nil
+		}
+		return append(json.RawMessage(nil), n.String()...)
+	}
+}
+
 // WriteRPCResult writes a JSON-RPC success response.
 func WriteRPCResult(w http.ResponseWriter, id json.RawMessage, result interface{}) {
-	out := map[string]interface{}{"jsonrpc": "2.0", "result": result}
-	if len(id) > 0 && string(id) != "null" {
-		var idVal interface{}
-		if err := json.Unmarshal(id, &idVal); err == nil {
-			out["id"] = idVal
-		}
+	body, err := json.Marshal(result)
+	if err != nil {
+		WriteRPCError(w, id, -32603, "internal error")
+		return
 	}
-	_ = json.NewEncoder(w).Encode(out)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(rpcSuccess{
+		JSONRPC: "2.0",
+		ID:      jsonRPCID(id),
+		Result:  body,
+	})
 }
 
 // WriteRPCError writes a JSON-RPC error response.
 func WriteRPCError(w http.ResponseWriter, id json.RawMessage, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
-	out := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"error": map[string]interface{}{
-			"code":    code,
-			"message": message,
+	_ = json.NewEncoder(w).Encode(rpcFailure{
+		JSONRPC: "2.0",
+		ID:      jsonRPCID(id),
+		Error: rpcErrorBody{
+			Code:    code,
+			Message: message,
 		},
-	}
-	if len(id) > 0 && string(id) != "null" {
-		var idVal interface{}
-		if err := json.Unmarshal(id, &idVal); err == nil {
-			out["id"] = idVal
-		}
-	}
-	_ = json.NewEncoder(w).Encode(out)
+	})
 }
