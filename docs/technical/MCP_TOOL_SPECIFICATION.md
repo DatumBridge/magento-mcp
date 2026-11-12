@@ -7,7 +7,7 @@
 | Transport | Streamable HTTP `POST /mcp` |
 | Protocol | `2024-11-05` |
 | Health | `GET /health` |
-| Default port | `8014` |
+| Default port | `8012` |
 | Upstream | Magento 2 REST API (`/rest/V1/...`) |
 
 ## Tool visibility

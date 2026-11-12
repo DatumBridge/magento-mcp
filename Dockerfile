@@ -14,8 +14,8 @@ RUN addgroup -g 1000 -S appuser && \
     adduser -u 1000 -S appuser -G appuser -s /sbin/nologin
 COPY --from=builder /magento-mcp /magento-mcp
 WORKDIR /
-EXPOSE 8014
+EXPOSE 8012
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8014/health || exit 1
+    CMD curl -f http://localhost:8012/health || exit 1
 USER appuser
 CMD ["/magento-mcp"]
