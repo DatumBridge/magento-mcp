@@ -25,7 +25,7 @@ A customer asks: "Áo này phối với quần hay túi xách nào?", "Gợi ý 
 |---|---|---|---|---|
 | `sku` | yes | string | "BLZ-01" | Product SKU |
 | `type` | no | string | "crosssell" | Type: crosssell, upsell, related, all |
-| `store_url` | no | string | "https://store.com" | Optional store URL override |
+| `store_url` | no | string | "https://store.com" | Optional override. When omitted, the tool uses the Magento store connected under Account → Integrations (`credentials_json.base_url`), then `MAGENTO_BASE_URL`. |
 
 ## Success fields
 

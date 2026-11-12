@@ -40,7 +40,7 @@ func publicProps(extra map[string]interface{}) map[string]interface{} {
 	props := map[string]interface{}{
 		"store_url": map[string]interface{}{
 			"type":        "string",
-			"description": "Optional Magento store base URL (e.g. https://fashion-shop.com). Defaults to configured MAGENTO_BASE_URL if omitted.",
+			"description": "Optional Magento store base URL. When omitted, the tool uses the workspace Magento connection (credentials_json.base_url), then MAGENTO_BASE_URL.",
 		},
 	}
 	for k, v := range extra {
@@ -83,11 +83,30 @@ func graphqlClientFrom(raw json.RawMessage) (*magento.GraphQLClient, map[string]
 	if storeURL == "" {
 		storeURL = strArg(m, "base_url")
 	}
+	if storeURL == "" {
+		storeURL = baseURLFromCredentialsJSON(strArg(m, "credentials_json"))
+	}
 	client, err := magento.NewGraphQLClient(storeURL)
 	if err != nil {
 		return nil, m, err
 	}
 	return client, m, nil
+}
+
+// baseURLFromCredentialsJSON reads the store the workspace connected under
+// Account → Integrations. Public catalog tools do not use the access token.
+func baseURLFromCredentialsJSON(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	var bundle struct {
+		BaseURL string `json:"base_url"`
+	}
+	if err := json.Unmarshal([]byte(raw), &bundle); err != nil {
+		return ""
+	}
+	return magento.NormalizeBaseURL(bundle.BaseURL)
 }
 
 func strArg(m map[string]interface{}, key string) string {

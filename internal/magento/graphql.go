@@ -43,7 +43,7 @@ func NewGraphQLClient(baseURL string) (*GraphQLClient, error) {
 		norm = NormalizeBaseURL(os.Getenv("MAGENTO_BASE_URL"))
 	}
 	if norm == "" {
-		return nil, fmt.Errorf("store_url is required (or configure MAGENTO_BASE_URL)")
+		return nil, fmt.Errorf("store_url is required (connect the store under Account → Integrations, or configure MAGENTO_BASE_URL)")
 	}
 
 	timeoutSec := 30

@@ -24,7 +24,7 @@ A customer asks to view the shop's department or category tree ("Shop có nhữn
 | Name | Required | Type | Sample | Meaning |
 |---|---|---|---|---|
 | `category_id` | no | string | "2" | Parent category ID |
-| `store_url` | no | string | "https://store.com" | Optional store URL override |
+| `store_url` | no | string | "https://store.com" | Optional override. When omitted, the tool uses the Magento store connected under Account → Integrations (`credentials_json.base_url`), then `MAGENTO_BASE_URL`. |
 
 ## Success fields
 

@@ -24,7 +24,7 @@ A customer asks to view product details, check size availability, view product p
 | Name | Required | Type | Sample | Meaning |
 |---|---|---|---|---|
 | `sku` | yes | string | "WF-SK-013" | Product SKU to view |
-| `store_url` | no | string | "https://store.com" | Optional store URL override |
+| `store_url` | no | string | "https://store.com" | Optional override. When omitted, the tool uses the Magento store connected under Account → Integrations (`credentials_json.base_url`), then `MAGENTO_BASE_URL`. |
 
 ## Success fields
 

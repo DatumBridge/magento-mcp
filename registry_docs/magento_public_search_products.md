@@ -29,7 +29,7 @@ A customer asks to find or explore products ("Tìm áo blazer", "Có váy nào d
 | `price_to` | no | number | 1500000 | Maximum price filter |
 | `page_size` | no | integer | 20 | Number of products per page (default 20, max 50) |
 | `current_page` | no | integer | 1 | Page number |
-| `store_url` | no | string | "https://store.com" | Optional store URL override |
+| `store_url` | no | string | "https://store.com" | Optional override. When omitted, the tool uses the Magento store connected under Account → Integrations (`credentials_json.base_url`), then `MAGENTO_BASE_URL`. |
 
 ## Success fields
 

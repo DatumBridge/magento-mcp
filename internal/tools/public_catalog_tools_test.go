@@ -2,10 +2,32 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+func TestHandleMagentoPublicSearchProducts_usesConnectedStoreURL(t *testing.T) {
+	t.Setenv("MAGENTO_BASE_URL", "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"products":{"total_count":1,"items":[{"sku":"DRESS-1","name":"Đầm dạ hội"}]}}}`))
+	}))
+	defer srv.Close()
+
+	payload, _ := json.Marshal(map[string]interface{}{
+		"search": "đầm dạ hội",
+		"credentials_json": fmt.Sprintf(
+			`{"base_url":%q,"access_token":"store-token","consumer_key":"ck","consumer_secret":"cs","access_token_secret":"ats"}`,
+			srv.URL,
+		),
+	})
+	res := handleMagentoPublicSearchProducts(payload)
+	if isErr, _ := res["isError"].(bool); isErr {
+		t.Fatalf("connected store URL was not used: %+v", res)
+	}
+}
 
 func TestHandleMagentoPublicSearchProducts(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

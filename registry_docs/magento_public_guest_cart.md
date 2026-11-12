@@ -27,7 +27,7 @@ A customer asks: "Thêm mẫu này vào giỏ hàng", "Tạo giỏ hàng mới",
 | `cart_id` | no | string | "guest-cart-hash" | Guest cart ID (required for 'add' and 'get') |
 | `sku` | no | string | "WF-SK-013" | Product SKU to add |
 | `qty` | no | number | 1 | Quantity to add |
-| `store_url` | no | string | "https://store.com" | Optional store URL override |
+| `store_url` | no | string | "https://store.com" | Optional override. When omitted, the tool uses the Magento store connected under Account → Integrations (`credentials_json.base_url`), then `MAGENTO_BASE_URL`. |
 
 ## Success fields
 
