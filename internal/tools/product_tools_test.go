@@ -389,7 +389,7 @@ func TestRunGetProduct_Cleo(t *testing.T) {
 		"credentials_json": fmt.Sprintf(`{"base_url":"%s","consumer_key":"ck","consumer_secret":"cs","access_token":"at","access_token_secret":"ats"}`, srv.URL),
 	}
 	raw, _ := json.Marshal(args)
-	res := handlers["magento_get_product"](raw)
+	res := handlers["magento_external_get_product"](raw)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error result: %+v", res)
 	}
@@ -458,7 +458,7 @@ func TestHandleListProducts_EnrichesPromotionalPrice(t *testing.T) {
 		"credentials_json": fmt.Sprintf(`{"base_url":"%s","consumer_key":"ck","consumer_secret":"cs","access_token":"at","access_token_secret":"ats"}`, srv.URL),
 	}
 	raw, _ := json.Marshal(args)
-	res := handlers["magento_list_products"](raw)
+	res := handlers["magento_external_list_products"](raw)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error: %+v", res)
 	}

@@ -97,16 +97,16 @@ func main() {
 
 	// 1. STORE (2 tools)
 	fmt.Println("--- [1] Store Configurations & Views (2 tools) ---")
-	runTest("magento_list_store_views", map[string]interface{}{}, true)
-	runTest("magento_list_store_configs", map[string]interface{}{}, true)
+	runTest("magento_external_list_store_views", map[string]interface{}{}, true)
+	runTest("magento_external_list_store_configs", map[string]interface{}{}, true)
 
 	// 2. INVENTORY (3 tools)
 	fmt.Println("\n--- [2] Inventory & Stock (MSI) (3 tools) ---")
-	runTest("magento_list_inventory_sources", map[string]interface{}{}, true)
+	runTest("magento_external_list_inventory_sources", map[string]interface{}{}, true)
 
 	// 3. CATEGORIES (4 tools)
 	fmt.Println("\n--- [3] Categories (4 tools) ---")
-	catRes, _ := runTest("magento_list_categories", map[string]interface{}{"depth": 2}, true)
+	catRes, _ := runTest("magento_external_list_categories", map[string]interface{}{"depth": 2}, true)
 	rootCatID := "2"
 	var catData map[string]interface{}
 	if err := json.Unmarshal([]byte(extractContentText(catRes)), &catData); err == nil {
@@ -114,16 +114,16 @@ func main() {
 			rootCatID = fmt.Sprintf("%.0f", id)
 		}
 	}
-	runTest("magento_get_category", map[string]interface{}{"category_id": rootCatID}, true)
-	runTest("magento_list_category_products", map[string]interface{}{"category_id": rootCatID}, true)
+	runTest("magento_external_get_category", map[string]interface{}{"category_id": rootCatID}, true)
+	runTest("magento_external_list_category_products", map[string]interface{}{"category_id": rootCatID}, true)
 
 	// 4. PRODUCTS (6 tools)
 	fmt.Println("\n--- [4] Products Lifecycle (6 tools) ---")
-	runTest("magento_list_product_types", map[string]interface{}{}, true)
-	runTest("magento_list_products", map[string]interface{}{"page_size": 5}, true)
+	runTest("magento_external_list_product_types", map[string]interface{}{}, true)
+	runTest("magento_external_list_products", map[string]interface{}{"page_size": 5}, true)
 
 	testSKU := fmt.Sprintf("MCP-AUTO-%d", time.Now().Unix())
-	runTest("magento_create_product", map[string]interface{}{
+	runTest("magento_external_create_product", map[string]interface{}{
 		"sku":        testSKU,
 		"name":       "MCP Automated Test Product",
 		"price":      129.95,
@@ -132,27 +132,27 @@ func main() {
 		"type_id":    "simple",
 		"weight":     1.2,
 	}, true)
-	runTest("magento_get_product", map[string]interface{}{"sku": testSKU}, true)
-	runTest("magento_update_product", map[string]interface{}{
+	runTest("magento_external_get_product", map[string]interface{}{"sku": testSKU}, true)
+	runTest("magento_external_update_product", map[string]interface{}{
 		"sku":   testSKU,
 		"name":  "MCP Automated Test Product (Updated)",
 		"price": 149.95,
 	}, true)
 
 	// Category assignment (4th Category tool)
-	runTest("magento_assign_category_product", map[string]interface{}{
+	runTest("magento_external_assign_category_product", map[string]interface{}{
 		"category_id": rootCatID,
 		"sku":         testSKU,
 		"position":    10,
 	}, true)
 
 	// Inventory stock tools (2nd & 3rd Inventory tools)
-	stockRes, _ := runTest("magento_get_stock_item", map[string]interface{}{"sku": testSKU}, true)
+	stockRes, _ := runTest("magento_external_get_stock_item", map[string]interface{}{"sku": testSKU}, true)
 	var stockData map[string]interface{}
 	if err := json.Unmarshal([]byte(extractContentText(stockRes)), &stockData); err == nil {
 		if itemIDFloat, ok := stockData["item_id"].(float64); ok {
 			itemID := fmt.Sprintf("%.0f", itemIDFloat)
-			runTest("magento_update_stock_item", map[string]interface{}{
+			runTest("magento_external_update_stock_item", map[string]interface{}{
 				"sku":         testSKU,
 				"item_id":     itemID,
 				"qty":         500,
@@ -162,14 +162,14 @@ func main() {
 	}
 
 	// Delete product (6th Product tool)
-	runTest("magento_delete_product", map[string]interface{}{"sku": testSKU}, true)
+	runTest("magento_external_delete_product", map[string]interface{}{"sku": testSKU}, true)
 
 	// 5. CUSTOMERS (4 tools)
 	fmt.Println("\n--- [5] Customers Lifecycle (4 tools) ---")
-	runTest("magento_list_customers", map[string]interface{}{"page_size": 5}, true)
+	runTest("magento_external_list_customers", map[string]interface{}{"page_size": 5}, true)
 
 	testEmail := fmt.Sprintf("mcp_test_%d@datumbridge.ai", time.Now().Unix())
-	custRes, custOk := runTest("magento_create_customer", map[string]interface{}{
+	custRes, custOk := runTest("magento_external_create_customer", map[string]interface{}{
 		"email":     testEmail,
 		"firstname": "John",
 		"lastname":  "Doe",
@@ -180,8 +180,8 @@ func main() {
 		if err := json.Unmarshal([]byte(extractContentText(custRes)), &custData); err == nil {
 			if custIDFloat, ok := custData["id"].(float64); ok {
 				custID := fmt.Sprintf("%.0f", custIDFloat)
-				runTest("magento_get_customer", map[string]interface{}{"customer_id": custID}, true)
-				runTest("magento_update_customer", map[string]interface{}{
+				runTest("magento_external_get_customer", map[string]interface{}{"customer_id": custID}, true)
+				runTest("magento_external_update_customer", map[string]interface{}{
 					"customer_id": custID,
 					"firstname":   "Jonathan",
 					"lastname":    "Doe",
@@ -193,21 +193,21 @@ func main() {
 
 	// 6. ORDERS (5 tools)
 	fmt.Println("\n--- [6] Orders (5 tools) ---")
-	runTest("magento_list_orders", map[string]interface{}{"page_size": 5}, true)
-	runTest("magento_get_order", map[string]interface{}{"order_id": "999999"}, false)
-	runTest("magento_add_order_comment", map[string]interface{}{"order_id": "999999", "comment": "test comment"}, false)
-	runTest("magento_cancel_order", map[string]interface{}{"order_id": "999999"}, false)
-	runTest("magento_hold_order", map[string]interface{}{"order_id": "999999"}, false)
+	runTest("magento_external_list_orders", map[string]interface{}{"page_size": 5}, true)
+	runTest("magento_external_get_order", map[string]interface{}{"order_id": "999999"}, false)
+	runTest("magento_external_add_order_comment", map[string]interface{}{"order_id": "999999", "comment": "test comment"}, false)
+	runTest("magento_external_cancel_order", map[string]interface{}{"order_id": "999999"}, false)
+	runTest("magento_external_hold_order", map[string]interface{}{"order_id": "999999"}, false)
 
 	// 7. INVOICES & SHIPMENTS (3 tools)
 	fmt.Println("\n--- [7] Invoices & Shipments (3 tools) ---")
-	runTest("magento_list_invoices", map[string]interface{}{"page_size": 5}, true)
-	runTest("magento_get_invoice", map[string]interface{}{"invoice_id": "999999"}, false)
-	runTest("magento_create_shipment", map[string]interface{}{"order_id": "999999"}, false)
+	runTest("magento_external_list_invoices", map[string]interface{}{"page_size": 5}, true)
+	runTest("magento_external_get_invoice", map[string]interface{}{"invoice_id": "999999"}, false)
+	runTest("magento_external_create_shipment", map[string]interface{}{"order_id": "999999"}, false)
 
 	// 8. PROMOTIONS & SALES RULES (3 tools)
 	fmt.Println("\n--- [8] Promotions & Sales Rules (3 tools) ---")
-	rulesRes, _ := runTest("magento_list_sales_rules", map[string]interface{}{"page_size": 5}, true)
+	rulesRes, _ := runTest("magento_external_list_sales_rules", map[string]interface{}{"page_size": 5}, true)
 	ruleID := "999999"
 	ruleExpectSuccess := false
 	var rulesData map[string]interface{}
@@ -221,18 +221,18 @@ func main() {
 			}
 		}
 	}
-	runTest("magento_get_sales_rule", map[string]interface{}{"rule_id": ruleID}, ruleExpectSuccess)
-	runTest("magento_delete_coupon", map[string]interface{}{"coupon_id": "999999"}, false)
+	runTest("magento_external_get_sales_rule", map[string]interface{}{"rule_id": ruleID}, ruleExpectSuccess)
+	runTest("magento_external_delete_coupon", map[string]interface{}{"coupon_id": "999999"}, false)
 
 	// 9. CREDIT MEMOS / REFUNDS (3 tools)
 	fmt.Println("\n--- [9] Credit Memos (3 tools) ---")
-	runTest("magento_list_credit_memos", map[string]interface{}{"page_size": 5}, true)
-	runTest("magento_get_credit_memo", map[string]interface{}{"creditmemo_id": "999999"}, false)
-	runTest("magento_create_credit_memo", map[string]interface{}{"order_id": "999999"}, false)
+	runTest("magento_external_list_credit_memos", map[string]interface{}{"page_size": 5}, true)
+	runTest("magento_external_get_credit_memo", map[string]interface{}{"creditmemo_id": "999999"}, false)
+	runTest("magento_external_create_credit_memo", map[string]interface{}{"order_id": "999999"}, false)
 
 	// 10. CMS PAGES & BLOCKS (4 tools)
 	fmt.Println("\n--- [10] CMS Pages & Blocks (4 tools) ---")
-	cmsRes, _ := runTest("magento_list_cms_pages", map[string]interface{}{"page_size": 5}, true)
+	cmsRes, _ := runTest("magento_external_list_cms_pages", map[string]interface{}{"page_size": 5}, true)
 	pageID := "999999"
 	pageExpectSuccess := false
 	var cmsData map[string]interface{}
@@ -246,9 +246,9 @@ func main() {
 			}
 		}
 	}
-	runTest("magento_get_cms_page", map[string]interface{}{"page_id": pageID}, pageExpectSuccess)
+	runTest("magento_external_get_cms_page", map[string]interface{}{"page_id": pageID}, pageExpectSuccess)
 
-	blockRes, _ := runTest("magento_list_cms_blocks", map[string]interface{}{"page_size": 5}, true)
+	blockRes, _ := runTest("magento_external_list_cms_blocks", map[string]interface{}{"page_size": 5}, true)
 	blockID := "999999"
 	blockExpectSuccess := false
 	var blockData map[string]interface{}
@@ -262,16 +262,16 @@ func main() {
 			}
 		}
 	}
-	runTest("magento_get_cms_block", map[string]interface{}{"block_id": blockID}, blockExpectSuccess)
+	runTest("magento_external_get_cms_block", map[string]interface{}{"block_id": blockID}, blockExpectSuccess)
 
 	// 11. PRODUCT MEDIA (2 tools)
 	fmt.Println("\n--- [11] Product Media (2 tools) ---")
-	runTest("magento_list_product_media", map[string]interface{}{"sku": "24-MB01"}, true)
-	runTest("magento_get_product_media", map[string]interface{}{"sku": "24-MB01", "entry_id": "1"}, true)
+	runTest("magento_external_list_product_media", map[string]interface{}{"sku": "24-MB01"}, true)
+	runTest("magento_external_get_product_media", map[string]interface{}{"sku": "24-MB01", "entry_id": "1"}, true)
 
 	// 12. CARTS & QUOTES (3 tools)
 	fmt.Println("\n--- [12] Carts & Quotes (3 tools) ---")
-	cartRes, cartOk := runTest("magento_create_empty_cart", map[string]interface{}{}, true)
+	cartRes, cartOk := runTest("magento_external_create_empty_cart", map[string]interface{}{}, true)
 	cartID := "999999"
 	cartExpectSuccess := false
 	if cartOk {
@@ -282,8 +282,8 @@ func main() {
 			cartExpectSuccess = true
 		}
 	}
-	runTest("magento_get_cart", map[string]interface{}{"cart_id": cartID}, cartExpectSuccess)
-	runTest("magento_add_cart_item", map[string]interface{}{"cart_id": cartID, "sku": "24-MB01", "qty": 1}, cartExpectSuccess)
+	runTest("magento_external_get_cart", map[string]interface{}{"cart_id": cartID}, cartExpectSuccess)
+	runTest("magento_external_add_cart_item", map[string]interface{}{"cart_id": cartID, "sku": "24-MB01", "qty": 1}, cartExpectSuccess)
 
 	// 13. MCP STREAMABLE HTTP PROTOCOL (POST /mcp)
 	fmt.Println("\n--- [13] MCP Streamable HTTP Protocol Validation ---")
@@ -320,14 +320,14 @@ func main() {
 	}
 
 	// Test tools/call via JSON-RPC with session ID
-	callReqBody := `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"magento_list_store_views","arguments":{}}}`
+	callReqBody := `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"magento_external_list_store_views","arguments":{}}}`
 	reqCall := httptest.NewRequest("POST", "/mcp", bytes.NewBufferString(callReqBody))
 	reqCall.Header.Set("Content-Type", "application/json")
 	reqCall.Header.Set("Mcp-Session-Id", sessionID)
 	wCall := httptest.NewRecorder()
 	server.HandleStreamableHTTP(wCall, reqCall)
 	if wCall.Code == http.StatusOK && strings.Contains(wCall.Body.String(), "default") {
-		fmt.Printf("✅ MCP tools/call JSON-RPC [%.2fs]: OK - executed magento_list_store_views over Streamable HTTP\n", 0.05)
+		fmt.Printf("✅ MCP tools/call JSON-RPC [%.2fs]: OK - executed magento_external_list_store_views over Streamable HTTP\n", 0.05)
 	} else {
 		fmt.Printf("❌ MCP tools/call failed: %d %s\n", wCall.Code, wCall.Body.String())
 	}

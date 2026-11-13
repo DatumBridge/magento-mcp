@@ -13,7 +13,7 @@ import (
 
 func registerProductImportTemplateTools(add toolAdder) {
 	add(
-		"magento_get_product_import_template",
+		"magento_external_get_product_import_template",
 		"Generate standard Excel (.xlsx) import template file with sample data and column definitions for creating or updating products in Magento 2.",
 		baseProps(map[string]interface{}{
 			"type": map[string]interface{}{

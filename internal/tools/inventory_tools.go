@@ -11,7 +11,7 @@ import (
 
 func registerInventoryTools(add toolAdder) {
 	add(
-		"magento_get_stock_item",
+		"magento_external_get_stock_item",
 		"Retrieve stock item details (quantity, in_stock status, manage_stock flag) for a product SKU.",
 		baseProps(map[string]interface{}{
 			"sku": map[string]interface{}{"type": "string", "description": "Product SKU"},
@@ -21,7 +21,7 @@ func registerInventoryTools(add toolAdder) {
 	)
 
 	add(
-		"magento_update_stock_item",
+		"magento_external_update_stock_item",
 		"Update product stock quantity and in_stock status for a product SKU.",
 		baseProps(map[string]interface{}{
 			"sku":         map[string]interface{}{"type": "string", "description": "Product SKU"},
@@ -34,7 +34,7 @@ func registerInventoryTools(add toolAdder) {
 	)
 
 	add(
-		"magento_list_inventory_sources",
+		"magento_external_list_inventory_sources",
 		"List inventory sources (Multi-Source Inventory / MSI) configured in Magento.",
 		baseProps(nil),
 		nil,
@@ -42,7 +42,7 @@ func registerInventoryTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_source_items",
+		"magento_external_get_source_items",
 		"Retrieve inventory source items (Multi-Source Inventory / MSI) by product SKU and optional source_code, showing stock quantity and status per source/warehouse.",
 		baseProps(map[string]interface{}{
 			"sku":          map[string]interface{}{"type": "string", "description": "Product SKU to query inventory for"},

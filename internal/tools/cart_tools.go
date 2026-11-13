@@ -11,7 +11,7 @@ import (
 
 func registerCartTools(add toolAdder) {
 	add(
-		"magento_create_empty_cart",
+		"magento_external_create_empty_cart",
 		"Create a new empty cart (quote) in Magento.",
 		baseProps(nil),
 		nil,
@@ -19,7 +19,7 @@ func registerCartTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_cart",
+		"magento_external_get_cart",
 		"Retrieve full cart details including items, billing, and totals by Cart ID.",
 		baseProps(map[string]interface{}{
 			"cart_id": map[string]interface{}{"type": "string", "description": "Cart / Quote ID"},
@@ -29,7 +29,7 @@ func registerCartTools(add toolAdder) {
 	)
 
 	add(
-		"magento_add_cart_item",
+		"magento_external_add_cart_item",
 		"Add a product item to a specific cart by Cart ID and SKU.",
 		baseProps(map[string]interface{}{
 			"cart_id": map[string]interface{}{"type": "string", "description": "Cart / Quote ID"},

@@ -10,7 +10,7 @@ import (
 
 func registerStoreTools(add toolAdder) {
 	add(
-		"magento_list_store_views",
+		"magento_external_list_store_views",
 		"List all store views configured in Magento, including store code, website ID, and name.",
 		baseProps(nil),
 		nil,
@@ -18,7 +18,7 @@ func registerStoreTools(add toolAdder) {
 	)
 
 	add(
-		"magento_list_store_configs",
+		"magento_external_list_store_configs",
 		"List store configurations and active locale/currency settings.",
 		baseProps(map[string]interface{}{
 			"store_codes": map[string]interface{}{"type": "string", "description": "Optional comma-separated store codes"},

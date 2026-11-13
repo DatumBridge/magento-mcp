@@ -12,7 +12,7 @@ import (
 
 func registerOrderTools(add toolAdder) {
 	add(
-		"magento_list_orders",
+		"magento_external_list_orders",
 		"List orders from Magento 2 using searchCriteria (pageSize, currentPage, status, customer_email, customer_id, increment_id, created_at_from, created_at_to).",
 		baseProps(map[string]interface{}{
 			"page_size":        map[string]interface{}{"type": "integer", "description": "Number of orders per page (default 20, max 100)"},
@@ -30,7 +30,7 @@ func registerOrderTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_order",
+		"magento_external_get_order",
 		"Retrieve single order details by Order ID, including items, addresses, payment, and totals.",
 		baseProps(map[string]interface{}{
 			"order_id": map[string]interface{}{"type": "string", "description": "Order entity ID"},
@@ -40,7 +40,7 @@ func registerOrderTools(add toolAdder) {
 	)
 
 	add(
-		"magento_add_order_comment",
+		"magento_external_add_order_comment",
 		"Add a status history comment to an order with optional customer notification flag.",
 		baseProps(map[string]interface{}{
 			"order_id":        map[string]interface{}{"type": "string", "description": "Order entity ID"},
@@ -54,7 +54,7 @@ func registerOrderTools(add toolAdder) {
 	)
 
 	add(
-		"magento_cancel_order",
+		"magento_external_cancel_order",
 		"Cancel an order in Magento by Order ID.",
 		baseProps(map[string]interface{}{
 			"order_id": map[string]interface{}{"type": "string", "description": "Order entity ID to cancel"},
@@ -64,7 +64,7 @@ func registerOrderTools(add toolAdder) {
 	)
 
 	add(
-		"magento_verify_and_get_order",
+		"magento_external_verify_and_get_order",
 		"Verify order ownership using order number (increment_id) and customer email or phone, then retrieve sanitized order status, shipping details, and items.",
 		baseProps(map[string]interface{}{
 			"order_number": map[string]interface{}{"type": "string", "description": "Order number / increment ID (e.g. 100000001 or #100000001)"},
@@ -75,7 +75,7 @@ func registerOrderTools(add toolAdder) {
 	)
 
 	add(
-		"magento_hold_order",
+		"magento_external_hold_order",
 		"Put an order on hold (or unhold if action='unhold').",
 		baseProps(map[string]interface{}{
 			"order_id": map[string]interface{}{"type": "string", "description": "Order entity ID"},

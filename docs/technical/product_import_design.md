@@ -11,16 +11,16 @@
 - Cung cấp cơ chế tự động tải và upload ảnh sản phẩm từ URL (`image_url`, `additional_images`).
 
 ### 1.2. Danh Sách Tools MCP
-1. `magento_get_product_import_template`: Xuất cấu trúc và dữ liệu file mẫu chuẩn Excel (.xlsx) cho thêm mới hoặc cập nhật.
-2. `magento_import_create_products`: Thêm mới hàng loạt sản phẩm từ file Excel (.xlsx).
-3. `magento_import_update_products`: Cập nhật thông tin hàng loạt sản phẩm hiện có từ file Excel (.xlsx).
+1. `magento_external_get_product_import_template`: Xuất cấu trúc và dữ liệu file mẫu chuẩn Excel (.xlsx) cho thêm mới hoặc cập nhật.
+2. `magento_external_import_create_products`: Thêm mới hàng loạt sản phẩm từ file Excel (.xlsx).
+3. `magento_external_import_update_products`: Cập nhật thông tin hàng loạt sản phẩm hiện có từ file Excel (.xlsx).
 
 ```mermaid
 graph TD
-    User([Agent / Người Dùng]) -->|1. Lấy mẫu| T[magento_get_product_import_template]
+    User([Agent / Người Dùng]) -->|1. Lấy mẫu| T[magento_external_get_product_import_template]
     T -->|Trả về cấu trúc & file mẫu| User
-    User -->|2. Thêm mới SP| C[magento_import_create_products]
-    User -->|3. Cập nhật SP| U[magento_import_update_products]
+    User -->|2. Thêm mới SP| C[magento_external_import_create_products]
+    User -->|3. Cập nhật SP| U[magento_external_import_update_products]
     
     subgraph Engine Xử Lý [Magento MCP Service]
         P[Parser CSV & Excelize] --> V[Validate Schema]
@@ -38,7 +38,7 @@ graph TD
 
 ## 2. Chi Tiết Đặc Tả Các Tools MCP
 
-### 2.1. Tool 1: `magento_get_product_import_template`
+### 2.1. Tool 1: `magento_external_get_product_import_template`
 *Mục đích*: Cung cấp file mẫu chuẩn xác kèm hướng dẫn và ví dụ cụ thể để người dùng hoặc AI Agent dễ dàng điền dữ liệu.
 
 #### Tham Số Đầu Vào (Input Parameters)
@@ -71,7 +71,7 @@ graph TD
 
 ---
 
-### 2.2. Tool 2: `magento_import_create_products`
+### 2.2. Tool 2: `magento_external_import_create_products`
 *Mục đích*: Thêm mới hàng loạt sản phẩm vào danh mục Magento từ file.
 
 #### Nguyên Tắc Nghiệp Vụ
@@ -119,7 +119,7 @@ graph TD
 
 ---
 
-### 2.3. Tool 3: `magento_import_update_products`
+### 2.3. Tool 3: `magento_external_import_update_products`
 *Mục đích*: Cập nhật thông tin hàng loạt sản phẩm đang tồn tại trên Magento từ file.
 
 #### Nguyên Tắc Nghiệp Vụ
@@ -255,8 +255,8 @@ sequenceDiagram
 | `go.mod` | Sửa đổi | Cài đặt dependency `github.com/xuri/excelize/v2`. |
 | `internal/tools/import_parser.go` | **Tạo mới** | Module đọc file từ `file_path`, parse CSV & Excel, chuẩn hóa header. |
 | `internal/tools/import_media.go` | **Tạo mới** | Module download ảnh từ URL, encode base64 và gọi API media gallery của Magento. |
-| `internal/tools/import_template_tool.go` | **Tạo mới** | Triển khai tool `magento_get_product_import_template`. |
-| `internal/tools/import_product_tools.go` | **Tạo mới** | Triển khai 2 tools `magento_import_create_products` và `magento_import_update_products`. |
+| `internal/tools/import_template_tool.go` | **Tạo mới** | Triển khai tool `magento_external_get_product_import_template`. |
+| `internal/tools/import_product_tools.go` | **Tạo mới** | Triển khai 2 tools `magento_external_import_create_products` và `magento_external_import_update_products`. |
 | `internal/tools/registry.go` | Sửa đổi | Đăng ký 3 tools mới vào danh mục sản phẩm của `magento-mcp`. |
 | `registry_docs/*.md` | **Tạo mới** | Tạo 3 file tài liệu chuẩn theo kiến trúc `x-datumbridge-docs`. |
 | `design.md` | Sửa đổi | Cập nhật tổng số lượng tools từ 42 lên 45 tools. |

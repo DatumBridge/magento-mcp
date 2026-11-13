@@ -25,39 +25,39 @@ func TestRegisterFullScopeByDefault(t *testing.T) {
 
 	wantedTools := []string{
 		// Products (11)
-		"magento_list_products", "magento_get_product", "magento_create_product",
-		"magento_update_product", "magento_delete_product", "magento_list_product_types",
-		"magento_get_product_import_template", "magento_import_create_products", "magento_import_update_products",
-		"magento_get_media_import_status", "magento_get_related_products",
+		"magento_external_list_products", "magento_external_get_product", "magento_external_create_product",
+		"magento_external_update_product", "magento_external_delete_product", "magento_external_list_product_types",
+		"magento_external_get_product_import_template", "magento_external_import_create_products", "magento_external_import_update_products",
+		"magento_external_get_media_import_status", "magento_external_get_related_products",
 		// Public Storefront (5)
-		"magento_public_search_products", "magento_public_get_product", "magento_public_get_outfit",
-		"magento_public_list_categories", "magento_public_guest_cart",
+		"magento_external_public_search_products", "magento_external_public_get_product", "magento_external_public_get_outfit",
+		"magento_external_public_list_categories", "magento_external_public_guest_cart",
 		// Orders (6)
-		"magento_list_orders", "magento_get_order", "magento_add_order_comment",
-		"magento_cancel_order", "magento_hold_order", "magento_verify_and_get_order",
+		"magento_external_list_orders", "magento_external_get_order", "magento_external_add_order_comment",
+		"magento_external_cancel_order", "magento_external_hold_order", "magento_external_verify_and_get_order",
 		// Customers (4)
-		"magento_list_customers", "magento_get_customer", "magento_create_customer",
-		"magento_update_customer",
+		"magento_external_list_customers", "magento_external_get_customer", "magento_external_create_customer",
+		"magento_external_update_customer",
 		// Inventory (4)
-		"magento_get_stock_item", "magento_update_stock_item", "magento_list_inventory_sources",
-		"magento_get_source_items",
+		"magento_external_get_stock_item", "magento_external_update_stock_item", "magento_external_list_inventory_sources",
+		"magento_external_get_source_items",
 		// Categories (4)
-		"magento_list_categories", "magento_get_category", "magento_list_category_products",
-		"magento_assign_category_product",
+		"magento_external_list_categories", "magento_external_get_category", "magento_external_list_category_products",
+		"magento_external_assign_category_product",
 		// Invoices & Shipments (3)
-		"magento_list_invoices", "magento_get_invoice", "magento_create_shipment",
+		"magento_external_list_invoices", "magento_external_get_invoice", "magento_external_create_shipment",
 		// Store (2)
-		"magento_list_store_views", "magento_list_store_configs",
+		"magento_external_list_store_views", "magento_external_list_store_configs",
 		// Promotions & Sales Rules (3)
-		"magento_list_sales_rules", "magento_get_sales_rule", "magento_delete_coupon",
+		"magento_external_list_sales_rules", "magento_external_get_sales_rule", "magento_external_delete_coupon",
 		// Credit Memos / Refunds (3)
-		"magento_list_credit_memos", "magento_get_credit_memo", "magento_create_credit_memo",
+		"magento_external_list_credit_memos", "magento_external_get_credit_memo", "magento_external_create_credit_memo",
 		// CMS (4)
-		"magento_list_cms_pages", "magento_get_cms_page", "magento_list_cms_blocks", "magento_get_cms_block",
+		"magento_external_list_cms_pages", "magento_external_get_cms_page", "magento_external_list_cms_blocks", "magento_external_get_cms_block",
 		// Product Media (2)
-		"magento_list_product_media", "magento_get_product_media",
+		"magento_external_list_product_media", "magento_external_get_product_media",
 		// Cart (3)
-		"magento_create_empty_cart", "magento_get_cart", "magento_add_cart_item",
+		"magento_external_create_empty_cart", "magento_external_get_cart", "magento_external_add_cart_item",
 	}
 
 	for _, want := range wantedTools {
@@ -86,19 +86,19 @@ func TestRegisterFullScopeByDefault(t *testing.T) {
 
 func TestRegisterCustomAllowlist(t *testing.T) {
 	clearToolFilterEnv(t)
-	t.Setenv("MAGENTO_TOOLS", "magento_get_product,magento_list_orders")
+	t.Setenv("MAGENTO_TOOLS", "magento_external_get_product,magento_external_list_orders")
 	descs, handlers := tools.Register()
 	if len(descs) != 2 {
 		t.Fatalf("expected 2 allowlisted tools, got %d", len(descs))
 	}
-	if _, ok := handlers["magento_get_product"]; !ok {
-		t.Fatal("magento_get_product should be enabled")
+	if _, ok := handlers["magento_external_get_product"]; !ok {
+		t.Fatal("magento_external_get_product should be enabled")
 	}
-	if _, ok := handlers["magento_list_orders"]; !ok {
-		t.Fatal("magento_list_orders should be enabled")
+	if _, ok := handlers["magento_external_list_orders"]; !ok {
+		t.Fatal("magento_external_list_orders should be enabled")
 	}
-	if _, ok := handlers["magento_create_product"]; ok {
-		t.Fatal("magento_create_product should be filtered out")
+	if _, ok := handlers["magento_external_create_product"]; ok {
+		t.Fatal("magento_external_create_product should be filtered out")
 	}
 }
 
@@ -145,7 +145,7 @@ func TestHandleGetProductSuccess(t *testing.T) {
 	raw, _ := json.Marshal(m)
 
 	_, handlers := tools.Register()
-	res := handlers["magento_get_product"](raw)
+	res := handlers["magento_external_get_product"](raw)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error result: %+v", res)
 	}
@@ -154,7 +154,7 @@ func TestHandleGetProductSuccess(t *testing.T) {
 func TestHandleGetProductMissingSKU(t *testing.T) {
 	clearToolFilterEnv(t)
 	_, handlers := tools.Register()
-	res := handlers["magento_get_product"](json.RawMessage(`{"credentials_json":"{\"base_url\":\"https://x.com\",\"consumer_key\":\"k\",\"consumer_secret\":\"s\",\"access_token\":\"t\",\"access_token_secret\":\"ts\"}"}`))
+	res := handlers["magento_external_get_product"](json.RawMessage(`{"credentials_json":"{\"base_url\":\"https://x.com\",\"consumer_key\":\"k\",\"consumer_secret\":\"s\",\"access_token\":\"t\",\"access_token_secret\":\"ts\"}"}`))
 	if res["isError"] != true {
 		t.Fatalf("expected error result for missing sku and name, got: %+v", res)
 	}
@@ -224,7 +224,7 @@ func TestHandleGetProductByNameSuccess(t *testing.T) {
 	raw, _ := json.Marshal(m)
 
 	_, handlers := tools.Register()
-	res := handlers["magento_get_product"](raw)
+	res := handlers["magento_external_get_product"](raw)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error result: %+v", res)
 	}
@@ -267,7 +267,7 @@ func TestHandleGetProductByNameNotFound(t *testing.T) {
 	raw, _ := json.Marshal(m)
 
 	_, handlers := tools.Register()
-	res := handlers["magento_get_product"](raw)
+	res := handlers["magento_external_get_product"](raw)
 	if res["isError"] != true {
 		t.Fatalf("expected error result for not found product, got: %+v", res)
 	}
@@ -300,7 +300,7 @@ func TestHandleCreateProductSuccess(t *testing.T) {
 	raw, _ := json.Marshal(m)
 
 	_, handlers := tools.Register()
-	res := handlers["magento_create_product"](raw)
+	res := handlers["magento_external_create_product"](raw)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error result: %+v", res)
 	}
@@ -320,7 +320,7 @@ func TestHandleListOrdersSuccess(t *testing.T) {
 
 	args := testCreds(t, srv)
 	_, handlers := tools.Register()
-	res := handlers["magento_list_orders"](args)
+	res := handlers["magento_external_list_orders"](args)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error result: %+v", res)
 	}
@@ -340,7 +340,7 @@ func TestHandleListStoreViewsSuccess(t *testing.T) {
 
 	args := testCreds(t, srv)
 	_, handlers := tools.Register()
-	res := handlers["magento_list_store_views"](args)
+	res := handlers["magento_external_list_store_views"](args)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error result: %+v", res)
 	}
@@ -386,7 +386,7 @@ func TestHandleMagentoVerifyAndGetOrder(t *testing.T) {
 		m["verification"] = "customer@example.com"
 		raw, _ := json.Marshal(m)
 
-		res := handlers["magento_verify_and_get_order"](raw)
+		res := handlers["magento_external_verify_and_get_order"](raw)
 		if res["isError"] == true {
 			t.Fatalf("unexpected error: %+v", res)
 		}
@@ -407,7 +407,7 @@ func TestHandleMagentoVerifyAndGetOrder(t *testing.T) {
 		m["verification"] = "+84987654321"
 		raw, _ := json.Marshal(m)
 
-		res := handlers["magento_verify_and_get_order"](raw)
+		res := handlers["magento_external_verify_and_get_order"](raw)
 		if res["isError"] == true {
 			t.Fatalf("unexpected error: %+v", res)
 		}
@@ -425,7 +425,7 @@ func TestHandleMagentoVerifyAndGetOrder(t *testing.T) {
 		m["verification"] = "wrong@example.com"
 		raw, _ := json.Marshal(m)
 
-		res := handlers["magento_verify_and_get_order"](raw)
+		res := handlers["magento_external_verify_and_get_order"](raw)
 		if res["isError"] == true {
 			t.Fatalf("unexpected error: %+v", res)
 		}
@@ -462,7 +462,7 @@ func TestHandleMagentoGetRelatedProducts(t *testing.T) {
 	m["link_type"] = "crosssell"
 	raw, _ := json.Marshal(m)
 
-	res := handlers["magento_get_related_products"](raw)
+	res := handlers["magento_external_get_related_products"](raw)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error: %+v", res)
 	}
@@ -512,7 +512,7 @@ func TestHandleGetSourceItemsSuccess(t *testing.T) {
 	raw, _ := json.Marshal(m)
 
 	_, handlers := tools.Register()
-	res := handlers["magento_get_source_items"](raw)
+	res := handlers["magento_external_get_source_items"](raw)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error: %+v", res)
 	}
@@ -525,7 +525,7 @@ func TestHandleGetSourceItemsSuccess(t *testing.T) {
 func TestHandleGetSourceItemsMissingSKU(t *testing.T) {
 	clearToolFilterEnv(t)
 	_, handlers := tools.Register()
-	res := handlers["magento_get_source_items"](json.RawMessage(`{"credentials_json":"{\"base_url\":\"https://x.com\",\"consumer_key\":\"k\",\"consumer_secret\":\"s\",\"access_token\":\"t\",\"access_token_secret\":\"ts\"}"}`))
+	res := handlers["magento_external_get_source_items"](json.RawMessage(`{"credentials_json":"{\"base_url\":\"https://x.com\",\"consumer_key\":\"k\",\"consumer_secret\":\"s\",\"access_token\":\"t\",\"access_token_secret\":\"ts\"}"}`))
 	if res["isError"] != true {
 		t.Fatalf("expected error result for missing sku, got: %+v", res)
 	}
@@ -568,7 +568,7 @@ func TestHandleListProductsWithCategoryID(t *testing.T) {
 	raw, _ := json.Marshal(m)
 
 	_, handlers := tools.Register()
-	res := handlers["magento_list_products"](raw)
+	res := handlers["magento_external_list_products"](raw)
 	if res["isError"] == true {
 		t.Fatalf("unexpected error: %+v", res)
 	}

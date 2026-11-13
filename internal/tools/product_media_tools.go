@@ -134,7 +134,7 @@ func enrichProductMedia(prod map[string]interface{}, mediaBase string) {
 
 func registerProductMediaTools(add toolAdder) {
 	add(
-		"magento_list_product_media",
+		"magento_external_list_product_media",
 		"List all media gallery entries and images for a product by SKU in Magento, including complete image URLs.",
 		baseProps(map[string]interface{}{
 			"sku": map[string]interface{}{"type": "string", "description": "Product SKU"},
@@ -144,7 +144,7 @@ func registerProductMediaTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_product_media",
+		"magento_external_get_product_media",
 		"Retrieve a specific media gallery entry for a product by SKU and Entry ID in Magento, including complete image URL.",
 		baseProps(map[string]interface{}{
 			"sku":      map[string]interface{}{"type": "string", "description": "Product SKU"},

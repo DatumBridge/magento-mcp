@@ -11,7 +11,7 @@ import (
 
 func registerCreditMemoTools(add toolAdder) {
 	add(
-		"magento_list_credit_memos",
+		"magento_external_list_credit_memos",
 		"List credit memos (refunds) in Magento using searchCriteria (pageSize, currentPage, order_id).",
 		baseProps(map[string]interface{}{
 			"page_size":    map[string]interface{}{"type": "integer", "description": "Page size (default 20)"},
@@ -23,7 +23,7 @@ func registerCreditMemoTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_credit_memo",
+		"magento_external_get_credit_memo",
 		"Retrieve full credit memo (refund) details by Credit Memo ID.",
 		baseProps(map[string]interface{}{
 			"creditmemo_id": map[string]interface{}{"type": "string", "description": "Credit memo entity ID"},
@@ -33,7 +33,7 @@ func registerCreditMemoTools(add toolAdder) {
 	)
 
 	add(
-		"magento_create_credit_memo",
+		"magento_external_create_credit_memo",
 		"Create a credit memo (refund) for an order in Magento.",
 		baseProps(map[string]interface{}{
 			"order_id": map[string]interface{}{"type": "string", "description": "Order entity ID to refund"},

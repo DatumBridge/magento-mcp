@@ -11,7 +11,7 @@ import (
 
 func registerCategoryTools(add toolAdder) {
 	add(
-		"magento_list_categories",
+		"magento_external_list_categories",
 		"Retrieve the hierarchical category tree from Magento.",
 		baseProps(map[string]interface{}{
 			"root_category_id": map[string]interface{}{"type": "string", "description": "Optional parent category ID to start the tree from"},
@@ -22,7 +22,7 @@ func registerCategoryTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_category",
+		"magento_external_get_category",
 		"Retrieve detailed category information by Category ID.",
 		baseProps(map[string]interface{}{
 			"category_id": map[string]interface{}{"type": "string", "description": "Category ID"},
@@ -32,7 +32,7 @@ func registerCategoryTools(add toolAdder) {
 	)
 
 	add(
-		"magento_list_category_products",
+		"magento_external_list_category_products",
 		"List all product SKUs assigned to a specific category.",
 		baseProps(map[string]interface{}{
 			"category_id": map[string]interface{}{"type": "string", "description": "Category ID"},
@@ -42,7 +42,7 @@ func registerCategoryTools(add toolAdder) {
 	)
 
 	add(
-		"magento_assign_category_product",
+		"magento_external_assign_category_product",
 		"Assign a product SKU to a category with optional display position.",
 		baseProps(map[string]interface{}{
 			"category_id": map[string]interface{}{"type": "string", "description": "Category ID"},

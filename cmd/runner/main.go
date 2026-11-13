@@ -12,7 +12,7 @@ import (
 func main() {
 	_ = godotenv.Load()
 
-	toolName := "magento_list_invoices"
+	toolName := "magento_external_list_invoices"
 	argsJSON := "{}"
 
 	if len(os.Args) > 1 {

@@ -14,7 +14,7 @@ import (
 
 func registerInvoiceShipmentTools(add toolAdder) {
 	add(
-		"magento_list_invoices",
+		"magento_external_list_invoices",
 		"List invoices in Magento using searchCriteria with enriched customer, order, address, payment, and shipping details.",
 		baseProps(map[string]interface{}{
 			"page_size":    map[string]interface{}{"type": "integer", "description": "Page size (default 20)"},
@@ -27,7 +27,7 @@ func registerInvoiceShipmentTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_invoice",
+		"magento_external_get_invoice",
 		"Retrieve full invoice details by Invoice ID, including enriched customer, order, address, and payment details.",
 		baseProps(map[string]interface{}{
 			"invoice_id": map[string]interface{}{"type": "string", "description": "Invoice entity ID"},
@@ -38,7 +38,7 @@ func registerInvoiceShipmentTools(add toolAdder) {
 	)
 
 	add(
-		"magento_create_shipment",
+		"magento_external_create_shipment",
 		"Create a shipment for an order to fulfill line items, with optional tracking numbers.",
 		baseProps(map[string]interface{}{
 			"order_id": map[string]interface{}{"type": "string", "description": "Order entity ID to ship"},

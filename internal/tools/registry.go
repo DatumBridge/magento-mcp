@@ -9,72 +9,72 @@ import (
 
 var toolOutputs = map[string]string{
 	// Products
-	"magento_list_products":               "items, total_count",
-	"magento_get_product":                 "id, sku, name, price, status, type_id",
-	"magento_create_product":              "id, sku, name, price, status",
-	"magento_update_product":              "id, sku, name, price, status",
-	"magento_delete_product":              "",
-	"magento_list_product_types":          "name, label",
-	"magento_get_product_import_template": "format, filename, file_base64, fields_guide",
-	"magento_import_create_products":      "total_rows, created_count, failed_count, failed_items, warnings",
-	"magento_import_update_products":      "total_rows, updated_count, failed_count, failed_items, warnings",
-	"magento_get_media_import_status":     "is_running, total_queued, completed, failed, pending, recent_warnings",
-	"magento_get_related_products":        "source_sku, link_type, items",
+	"magento_external_list_products":               "items, total_count",
+	"magento_external_get_product":                 "id, sku, name, price, status, type_id",
+	"magento_external_create_product":              "id, sku, name, price, status",
+	"magento_external_update_product":              "id, sku, name, price, status",
+	"magento_external_delete_product":              "",
+	"magento_external_list_product_types":          "name, label",
+	"magento_external_get_product_import_template": "format, filename, file_base64, fields_guide",
+	"magento_external_import_create_products":      "total_rows, created_count, failed_count, failed_items, warnings",
+	"magento_external_import_update_products":      "total_rows, updated_count, failed_count, failed_items, warnings",
+	"magento_external_get_media_import_status":     "is_running, total_queued, completed, failed, pending, recent_warnings",
+	"magento_external_get_related_products":        "source_sku, link_type, items",
 	// Public / Guest Storefront (GraphQL No-Auth)
-	"magento_public_search_products": "products, total_count",
-	"magento_public_get_product":     "products, items",
-	"magento_public_get_outfit":      "crosssell_outfit, upsell_alternatives, related_accessories",
-	"magento_public_list_categories": "categoryList",
-	"magento_public_guest_cart":      "cart_id, cart",
+	"magento_external_public_search_products": "products, total_count",
+	"magento_external_public_get_product":     "products, items",
+	"magento_external_public_get_outfit":      "crosssell_outfit, upsell_alternatives, related_accessories",
+	"magento_external_public_list_categories": "categoryList",
+	"magento_external_public_guest_cart":      "cart_id, cart",
 	// Orders
-	"magento_list_orders":       "items, total_count",
-	"magento_get_order":         "entity_id, increment_id, status, grand_total, items",
-	"magento_add_order_comment": "",
-	"magento_cancel_order":      "",
-	"magento_hold_order":        "",
-	"magento_verify_and_get_order": "verified, order_number, status, total_amount, shipping, items",
+	"magento_external_list_orders":       "items, total_count",
+	"magento_external_get_order":         "entity_id, increment_id, status, grand_total, items",
+	"magento_external_add_order_comment": "",
+	"magento_external_cancel_order":      "",
+	"magento_external_hold_order":        "",
+	"magento_external_verify_and_get_order": "verified, order_number, status, total_amount, shipping, items",
 	// Customers
-	"magento_list_customers":  "items, total_count",
-	"magento_get_customer":    "id, email, firstname, lastname, group_id",
-	"magento_create_customer": "id, email, firstname, lastname, group_id",
-	"magento_update_customer": "id, email, firstname, lastname, group_id",
+	"magento_external_list_customers":  "items, total_count",
+	"magento_external_get_customer":    "id, email, firstname, lastname, group_id",
+	"magento_external_create_customer": "id, email, firstname, lastname, group_id",
+	"magento_external_update_customer": "id, email, firstname, lastname, group_id",
 	// Inventory
-	"magento_get_stock_item":         "item_id, product_id, qty, is_in_stock",
-	"magento_update_stock_item":      "item_id, product_id, qty, is_in_stock",
-	"magento_list_inventory_sources": "items, total_count",
-	"magento_get_source_items":       "items, total_count",
+	"magento_external_get_stock_item":         "item_id, product_id, qty, is_in_stock",
+	"magento_external_update_stock_item":      "item_id, product_id, qty, is_in_stock",
+	"magento_external_list_inventory_sources": "items, total_count",
+	"magento_external_get_source_items":       "items, total_count",
 	// Categories
-	"magento_list_categories":         "id, parent_id, name, children_data",
-	"magento_get_category":            "id, parent_id, name, position",
-	"magento_list_category_products":  "sku, position, category_id",
-	"magento_assign_category_product": "",
+	"magento_external_list_categories":         "id, parent_id, name, children_data",
+	"magento_external_get_category":            "id, parent_id, name, position",
+	"magento_external_list_category_products":  "sku, position, category_id",
+	"magento_external_assign_category_product": "",
 	// Invoices & Shipments
-	"magento_list_invoices":   "items, total_count",
-	"magento_get_invoice":     "entity_id, order_id, grand_total, state",
-	"magento_create_shipment": "shipment_id, order_id",
+	"magento_external_list_invoices":   "items, total_count",
+	"magento_external_get_invoice":     "entity_id, order_id, grand_total, state",
+	"magento_external_create_shipment": "shipment_id, order_id",
 	// Store
-	"magento_list_store_views":   "id, code, name, website_id",
-	"magento_list_store_configs": "items",
+	"magento_external_list_store_views":   "id, code, name, website_id",
+	"magento_external_list_store_configs": "items",
 	// Promotions
-	"magento_list_sales_rules": "items, total_count",
-	"magento_get_sales_rule":   "rule_id, name, coupon_type, discount_amount",
-	"magento_delete_coupon":    "",
+	"magento_external_list_sales_rules": "items, total_count",
+	"magento_external_get_sales_rule":   "rule_id, name, coupon_type, discount_amount",
+	"magento_external_delete_coupon":    "",
 	// Credit Memos
-	"magento_list_credit_memos":  "items, total_count",
-	"magento_get_credit_memo":    "entity_id, order_id, grand_total, items",
-	"magento_create_credit_memo": "credit_memo_id, order_id",
+	"magento_external_list_credit_memos":  "items, total_count",
+	"magento_external_get_credit_memo":    "entity_id, order_id, grand_total, items",
+	"magento_external_create_credit_memo": "credit_memo_id, order_id",
 	// CMS
-	"magento_list_cms_pages":  "items, total_count",
-	"magento_get_cms_page":    "id, identifier, title, content",
-	"magento_list_cms_blocks": "items, total_count",
-	"magento_get_cms_block":   "id, identifier, title, content",
+	"magento_external_list_cms_pages":  "items, total_count",
+	"magento_external_get_cms_page":    "id, identifier, title, content",
+	"magento_external_list_cms_blocks": "items, total_count",
+	"magento_external_get_cms_block":   "id, identifier, title, content",
 	// Product Media
-	"magento_list_product_media": "id, media_type, file, url",
-	"magento_get_product_media":  "id, media_type, file, url",
+	"magento_external_list_product_media": "id, media_type, file, url",
+	"magento_external_get_product_media":  "id, media_type, file, url",
 	// Cart
-	"magento_create_empty_cart": "cart_id",
-	"magento_get_cart":          "id, is_active, items, items_count",
-	"magento_add_cart_item":     "item_id, sku, qty, quote_id",
+	"magento_external_create_empty_cart": "cart_id",
+	"magento_external_get_cart":          "id, is_active, items, items_count",
+	"magento_external_add_cart_item":     "item_id, sku, qty, quote_id",
 }
 
 type relatedMeta struct {
@@ -83,18 +83,18 @@ type relatedMeta struct {
 }
 
 var paramRelated = map[string]relatedMeta{
-	"sku":           {tool: "magento_list_products", field: "items[0].sku"},
-	"order_id":      {tool: "magento_list_orders", field: "items[0].entity_id"},
-	"customer_id":   {tool: "magento_list_customers", field: "items[0].id"},
-	"category_id":   {tool: "magento_list_categories", field: "id"},
-	"invoice_id":    {tool: "magento_list_invoices", field: "items[0].entity_id"},
-	"creditmemo_id": {tool: "magento_list_credit_memos", field: "items[0].entity_id"},
-	"rule_id":       {tool: "magento_list_sales_rules", field: "items[0].rule_id"},
-	"page_id":       {tool: "magento_list_cms_pages", field: "items[0].id"},
-	"block_id":      {tool: "magento_list_cms_blocks", field: "items[0].id"},
-	"cart_id":       {tool: "magento_create_empty_cart", field: "cart_id"},
-	"entry_id":      {tool: "magento_list_product_media", field: "[0].id"},
-	"source_code":   {tool: "magento_list_inventory_sources", field: "items[0].source_code"},
+	"sku":           {tool: "magento_external_list_products", field: "items[0].sku"},
+	"order_id":      {tool: "magento_external_list_orders", field: "items[0].entity_id"},
+	"customer_id":   {tool: "magento_external_list_customers", field: "items[0].id"},
+	"category_id":   {tool: "magento_external_list_categories", field: "id"},
+	"invoice_id":    {tool: "magento_external_list_invoices", field: "items[0].entity_id"},
+	"creditmemo_id": {tool: "magento_external_list_credit_memos", field: "items[0].entity_id"},
+	"rule_id":       {tool: "magento_external_list_sales_rules", field: "items[0].rule_id"},
+	"page_id":       {tool: "magento_external_list_cms_pages", field: "items[0].id"},
+	"block_id":      {tool: "magento_external_list_cms_blocks", field: "items[0].id"},
+	"cart_id":       {tool: "magento_external_create_empty_cart", field: "cart_id"},
+	"entry_id":      {tool: "magento_external_list_product_media", field: "[0].id"},
+	"source_code":   {tool: "magento_external_list_inventory_sources", field: "items[0].source_code"},
 }
 
 func annotateRelated(toolName string, props map[string]interface{}) {
@@ -103,7 +103,7 @@ func annotateRelated(toolName string, props map[string]interface{}) {
 		if !ok {
 			continue
 		}
-		if k == "sku" && toolName == "magento_create_product" {
+		if k == "sku" && toolName == "magento_external_create_product" {
 			continue
 		}
 		if rel, found := paramRelated[k]; found {

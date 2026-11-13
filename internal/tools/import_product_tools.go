@@ -18,7 +18,7 @@ import (
 
 func registerProductImportTools(add toolAdder) {
 	add(
-		"magento_import_create_products",
+		"magento_external_import_create_products",
 		"Bulk import and create new products in Magento 2 from an Excel (.xlsx) file. Automatically downloads and uploads product images from URLs. Supports batching (offset/limit), smart chunking, deferred media queue, and high-concurrency for large files. Required columns: sku, name, price.",
 		baseProps(map[string]interface{}{
 			"file_path": map[string]interface{}{
@@ -35,7 +35,7 @@ func registerProductImportTools(add toolAdder) {
 			},
 			"defer_images": map[string]interface{}{
 				"type":        "boolean",
-				"description": "If true, products and configurable links are created immediately while images are queued and uploaded asynchronously in the background. Prevents client timeouts. Check progress via 'magento_get_media_import_status'. Default false.",
+				"description": "If true, products and configurable links are created immediately while images are queued and uploaded asynchronously in the background. Prevents client timeouts. Check progress via 'magento_external_get_media_import_status'. Default false.",
 			},
 			"smart_chunking": map[string]interface{}{
 				"type":        "boolean",
@@ -55,7 +55,7 @@ func registerProductImportTools(add toolAdder) {
 	)
 
 	add(
-		"magento_import_update_products",
+		"magento_external_import_update_products",
 		"Bulk update existing products in Magento 2 from an Excel (.xlsx) file. Supports partial updates, batching (offset/limit), and high-concurrency. Required column: sku.",
 		baseProps(map[string]interface{}{
 			"file_path": map[string]interface{}{
@@ -76,7 +76,7 @@ func registerProductImportTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_media_import_status",
+		"magento_external_get_media_import_status",
 		"Check the current progress and status of background (deferred) product image and video uploads in Magento. Returns queued, completed, failed, and pending task counts.",
 		baseProps(map[string]interface{}{}),
 		[]string{},
@@ -329,7 +329,7 @@ func handleMagentoImportCreateProducts(args json.RawMessage) map[string]interfac
 	if deferImages {
 		resp["media_deferred"] = true
 		resp["media_queued_count"] = queuedMediaCount
-		resp["media_status_hint"] = "Images are downloading and uploading in the background. Call tool 'magento_get_media_import_status' to monitor progress."
+		resp["media_status_hint"] = "Images are downloading and uploading in the background. Call tool 'magento_external_get_media_import_status' to monitor progress."
 	}
 	if skipImages {
 		resp["images_skipped"] = true

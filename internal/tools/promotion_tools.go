@@ -11,7 +11,7 @@ import (
 
 func registerPromotionTools(add toolAdder) {
 	add(
-		"magento_list_sales_rules",
+		"magento_external_list_sales_rules",
 		"List discount sales rules and promotions in Magento using searchCriteria (pageSize, currentPage, name, is_active).",
 		baseProps(map[string]interface{}{
 			"page_size":    map[string]interface{}{"type": "integer", "description": "Page size (default 20)"},
@@ -24,7 +24,7 @@ func registerPromotionTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_sales_rule",
+		"magento_external_get_sales_rule",
 		"Retrieve sales rule / promotion details by rule ID.",
 		baseProps(map[string]interface{}{
 			"rule_id": map[string]interface{}{"type": "string", "description": "Sales rule entity ID"},
@@ -34,7 +34,7 @@ func registerPromotionTools(add toolAdder) {
 	)
 
 	add(
-		"magento_delete_coupon",
+		"magento_external_delete_coupon",
 		"Delete a discount coupon by Coupon ID in Magento.",
 		baseProps(map[string]interface{}{
 			"coupon_id": map[string]interface{}{"type": "string", "description": "Coupon entity ID"},

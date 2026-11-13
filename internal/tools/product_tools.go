@@ -16,7 +16,7 @@ import (
 
 func registerProductTools(add toolAdder) {
 	add(
-		"magento_list_products",
+		"magento_external_list_products",
 		"Search and list products in Magento 2 using searchCriteria (pageSize, currentPage, sku, name, type_id, status, price_from, price_to, category_id).",
 		baseProps(map[string]interface{}{
 			"page_size":    map[string]interface{}{"type": "integer", "description": "Number of products per page (default 20, max 100)"},
@@ -34,7 +34,7 @@ func registerProductTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_product",
+		"magento_external_get_product",
 		"Retrieve full product details by SKU or product name. Provide sku if known; otherwise provide name to search and retrieve product details.",
 		baseProps(map[string]interface{}{
 			"sku":  map[string]interface{}{"type": "string", "description": "Product SKU (provide either sku or name)"},
@@ -45,7 +45,7 @@ func registerProductTools(add toolAdder) {
 	)
 
 	add(
-		"magento_create_product",
+		"magento_external_create_product",
 		"Create a new product in Magento with SKU, name, price, status, type_id, and attribute_set_id.",
 		baseProps(map[string]interface{}{
 			"sku":              map[string]interface{}{"type": "string", "description": "Unique product SKU"},
@@ -62,7 +62,7 @@ func registerProductTools(add toolAdder) {
 	)
 
 	add(
-		"magento_update_product",
+		"magento_external_update_product",
 		"Update an existing product's fields (name, price, status, visibility, weight) by SKU.",
 		baseProps(map[string]interface{}{
 			"sku":        map[string]interface{}{"type": "string", "description": "Product SKU to update"},
@@ -77,7 +77,7 @@ func registerProductTools(add toolAdder) {
 	)
 
 	add(
-		"magento_delete_product",
+		"magento_external_delete_product",
 		"Delete a product by SKU.",
 		baseProps(map[string]interface{}{
 			"sku": map[string]interface{}{"type": "string", "description": "Product SKU to delete"},
@@ -87,7 +87,7 @@ func registerProductTools(add toolAdder) {
 	)
 
 	add(
-		"magento_list_product_types",
+		"magento_external_list_product_types",
 		"List all available product types supported by the Magento store.",
 		baseProps(nil),
 		nil,
@@ -95,7 +95,7 @@ func registerProductTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_related_products",
+		"magento_external_get_related_products",
 		"Retrieve related, cross-sell, or up-sell products linked to a product SKU for outfit styling or recommendation.",
 		baseProps(map[string]interface{}{
 			"sku": map[string]interface{}{"type": "string", "description": "Product SKU to find linked products for"},

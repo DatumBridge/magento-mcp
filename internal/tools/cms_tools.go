@@ -11,7 +11,7 @@ import (
 
 func registerCmsTools(add toolAdder) {
 	add(
-		"magento_list_cms_pages",
+		"magento_external_list_cms_pages",
 		"List CMS static pages in Magento using searchCriteria (pageSize, currentPage, identifier, title).",
 		baseProps(map[string]interface{}{
 			"page_size":    map[string]interface{}{"type": "integer", "description": "Page size (default 20)"},
@@ -24,7 +24,7 @@ func registerCmsTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_cms_page",
+		"magento_external_get_cms_page",
 		"Retrieve CMS page details by Page ID.",
 		baseProps(map[string]interface{}{
 			"page_id": map[string]interface{}{"type": "string", "description": "CMS page entity ID"},
@@ -34,7 +34,7 @@ func registerCmsTools(add toolAdder) {
 	)
 
 	add(
-		"magento_list_cms_blocks",
+		"magento_external_list_cms_blocks",
 		"List CMS static blocks in Magento using searchCriteria (pageSize, currentPage, identifier, title).",
 		baseProps(map[string]interface{}{
 			"page_size":    map[string]interface{}{"type": "integer", "description": "Page size (default 20)"},
@@ -47,7 +47,7 @@ func registerCmsTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_cms_block",
+		"magento_external_get_cms_block",
 		"Retrieve CMS static block details by Block ID.",
 		baseProps(map[string]interface{}{
 			"block_id": map[string]interface{}{"type": "string", "description": "CMS block entity ID"},

@@ -12,7 +12,7 @@ import (
 
 func registerCustomerTools(add toolAdder) {
 	add(
-		"magento_list_customers",
+		"magento_external_list_customers",
 		"Search and list customers in Magento 2 using searchCriteria (email, lastname, firstname, group_id, pageSize).",
 		baseProps(map[string]interface{}{
 			"page_size":    map[string]interface{}{"type": "integer", "description": "Page size (default 20)"},
@@ -27,7 +27,7 @@ func registerCustomerTools(add toolAdder) {
 	)
 
 	add(
-		"magento_get_customer",
+		"magento_external_get_customer",
 		"Retrieve full customer account details by Customer ID.",
 		baseProps(map[string]interface{}{
 			"customer_id": map[string]interface{}{"type": "string", "description": "Customer entity ID"},
@@ -37,7 +37,7 @@ func registerCustomerTools(add toolAdder) {
 	)
 
 	add(
-		"magento_create_customer",
+		"magento_external_create_customer",
 		"Create a new customer account in Magento with email, firstname, and lastname.",
 		baseProps(map[string]interface{}{
 			"email":     map[string]interface{}{"type": "string", "description": "Customer email"},
@@ -50,7 +50,7 @@ func registerCustomerTools(add toolAdder) {
 	)
 
 	add(
-		"magento_update_customer",
+		"magento_external_update_customer",
 		"Update customer details (firstname, lastname, email) by Customer ID.",
 		baseProps(map[string]interface{}{
 			"customer_id": map[string]interface{}{"type": "string", "description": "Customer entity ID"},

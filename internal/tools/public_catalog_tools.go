@@ -10,7 +10,7 @@ import (
 
 func registerPublicCatalogTools(add toolAdder) {
 	add(
-		"magento_public_search_products",
+		"magento_external_public_search_products",
 		"Search and list products for guest shoppers without authentication via Magento GraphQL. Supports keyword search, category filter, price range, and returns product attributes with website stock status (IN_STOCK / OUT_OF_STOCK).",
 		publicProps(map[string]interface{}{
 			"search":       map[string]interface{}{"type": "string", "description": "Search keyword matching product name, SKU, or description"},
@@ -25,7 +25,7 @@ func registerPublicCatalogTools(add toolAdder) {
 	)
 
 	add(
-		"magento_public_get_product",
+		"magento_external_public_get_product",
 		"Retrieve full product details by SKU for guest shoppers without authentication via Magento GraphQL. Includes description, image gallery, available sizes, colors, and stock status.",
 		publicProps(map[string]interface{}{
 			"sku": map[string]interface{}{"type": "string", "description": "Product SKU"},
@@ -35,7 +35,7 @@ func registerPublicCatalogTools(add toolAdder) {
 	)
 
 	add(
-		"magento_public_get_outfit",
+		"magento_external_public_get_outfit",
 		"Retrieve outfit styling recommendations (cross-sell items), similar alternatives (up-sell items), and accessories (related items) for a product SKU without authentication.",
 		publicProps(map[string]interface{}{
 			"sku": map[string]interface{}{"type": "string", "description": "Product SKU to find styling recommendations for"},
@@ -50,7 +50,7 @@ func registerPublicCatalogTools(add toolAdder) {
 	)
 
 	add(
-		"magento_public_list_categories",
+		"magento_external_public_list_categories",
 		"Retrieve category hierarchy for guest shoppers to explore styles and catalog tree without authentication.",
 		publicProps(map[string]interface{}{
 			"category_id": map[string]interface{}{"type": "string", "description": "Parent category ID (optional, defaults to root catalog)"},
@@ -60,7 +60,7 @@ func registerPublicCatalogTools(add toolAdder) {
 	)
 
 	add(
-		"magento_public_guest_cart",
+		"magento_external_public_guest_cart",
 		"Guest cart management for shoppers without authentication. Create an empty cart, add items, or view current cart.",
 		publicProps(map[string]interface{}{
 			"action":  map[string]interface{}{"type": "string", "description": "Cart action: 'create', 'add', or 'get'", "enum": []interface{}{"create", "add", "get"}},
