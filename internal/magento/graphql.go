@@ -89,6 +89,14 @@ func (c *GraphQLClient) Endpoint() string {
 	return c.endpoint
 }
 
+// BaseURL returns the normalized store base URL without the /graphql suffix.
+func (c *GraphQLClient) BaseURL() string {
+	if c == nil || c.endpoint == "" {
+		return ""
+	}
+	return strings.TrimSuffix(c.endpoint, "/graphql")
+}
+
 // Query sends a GraphQL query or mutation and returns the raw `data` JSON payload.
 func (c *GraphQLClient) Query(ctx context.Context, query string, variables map[string]interface{}) (json.RawMessage, error) {
 	if c == nil || c.endpoint == "" {

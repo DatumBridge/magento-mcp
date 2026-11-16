@@ -217,3 +217,71 @@ func handleMagentoGetProductMedia(args json.RawMessage) map[string]interface{} {
 	return rawResult(data)
 }
 
+// formatProductPageURL constructs a valid frontend URL for a product in Magento.
+// Product URLs in standard Magento 2 have a .html suffix (e.g. https://store.com/dress.html).
+func formatProductPageURL(baseURL, urlKey string) string {
+	urlKey = strings.TrimSpace(urlKey)
+	if urlKey == "" {
+		return ""
+	}
+	if strings.HasPrefix(urlKey, "http://") || strings.HasPrefix(urlKey, "https://") {
+		// If it's already an absolute URL without extension, ensure .html is present
+		if !strings.Contains(urlKey, ".html") && !strings.Contains(urlKey, "?") && !strings.Contains(urlKey, "#") {
+			return urlKey + ".html"
+		}
+		return urlKey
+	}
+	cleanKey := strings.Trim(urlKey, "/")
+	if !strings.HasSuffix(strings.ToLower(cleanKey), ".html") {
+		cleanKey += ".html"
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+	if baseURL != "" {
+		return baseURL + "/" + cleanKey
+	}
+	return "/" + cleanKey
+}
+
+// extractProductURLKey extracts the url_key attribute from either top-level or custom_attributes.
+func extractProductURLKey(prod map[string]interface{}) string {
+	if prod == nil {
+		return ""
+	}
+	if uk, ok := prod["url_key"].(string); ok && strings.TrimSpace(uk) != "" {
+		return strings.TrimSpace(uk)
+	}
+	if rawCA, ok := prod["custom_attributes"].([]interface{}); ok {
+		for _, item := range rawCA {
+			if attr, ok := item.(map[string]interface{}); ok {
+				if code, _ := attr["attribute_code"].(string); code == "url_key" {
+					if val, ok := attr["value"].(string); ok && strings.TrimSpace(val) != "" {
+						return strings.TrimSpace(val)
+					}
+				}
+			}
+		}
+	} else if rawCA, ok := prod["custom_attributes"].([]map[string]interface{}); ok {
+		for _, attr := range rawCA {
+			if code, _ := attr["attribute_code"].(string); code == "url_key" {
+				if val, ok := attr["value"].(string); ok && strings.TrimSpace(val) != "" {
+					return strings.TrimSpace(val)
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// enrichProductURL adds top-level url, url_path, and url_key to a product map.
+func enrichProductURL(prod map[string]interface{}, baseURL string) {
+	if prod == nil {
+		return
+	}
+	urlKey := extractProductURLKey(prod)
+	if urlKey != "" {
+		prod["url_key"] = urlKey
+		prod["url"] = formatProductPageURL(baseURL, urlKey)
+		prod["url_path"] = formatProductPageURL("", urlKey)
+	}
+}
+

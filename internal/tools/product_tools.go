@@ -158,6 +158,7 @@ func handleMagentoListProducts(args json.RawMessage) map[string]interface{} {
 			for _, it := range items {
 				if prod, ok := it.(map[string]interface{}); ok {
 					enrichProductMedia(prod, mediaBase)
+					enrichProductURL(prod, client.BaseURL())
 				}
 			}
 			enrichProductsListPricing(c, client, items)
@@ -318,6 +319,7 @@ func handleMagentoGetProduct(args json.RawMessage) map[string]interface{} {
 	var prod map[string]interface{}
 	if err := json.Unmarshal(data, &prod); err == nil {
 		enrichProductMedia(prod, mediaBase)
+		enrichProductURL(prod, client.BaseURL())
 		if typeID, _ := prod["type_id"].(string); typeID == "configurable" {
 			enrichConfigurableProduct(c, client, prod, mediaBase)
 		} else {
@@ -556,6 +558,7 @@ func handleMagentoGetRelatedProducts(args json.RawMessage) map[string]interface{
 
 	var items []map[string]interface{}
 	for _, p := range prodResp.Items {
+		urlKey := extractProductURLKey(p)
 		items = append(items, map[string]interface{}{
 			"sku":       p["sku"],
 			"name":      p["name"],
@@ -563,6 +566,9 @@ func handleMagentoGetRelatedProducts(args json.RawMessage) map[string]interface{
 			"status":    p["status"],
 			"type_id":   p["type_id"],
 			"image_url": getImage(p),
+			"url_key":   urlKey,
+			"url":       formatProductPageURL(client.BaseURL(), urlKey),
+			"url_path":  formatProductPageURL("", urlKey),
 		})
 	}
 
@@ -782,6 +788,7 @@ func enrichConfigurableProduct(c context.Context, client *magento.Client, prod m
 		// A. Collect from children (simple products)
 		for _, child := range children {
 			enrichProductMedia(child, mediaBase)
+			enrichProductURL(child, client.BaseURL())
 
 			var matchedVIdx string
 			if cas, ok := child["custom_attributes"].([]interface{}); ok {
