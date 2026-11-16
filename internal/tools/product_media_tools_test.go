@@ -285,3 +285,48 @@ func TestLive_MagentoListProductMedia(t *testing.T) {
 	}
 }
 
+func TestFormatProductPageURL_And_EnrichProductURL(t *testing.T) {
+	// 1. formatProductPageURL tests
+	base := "https://fashion-demo.secomm.vn"
+	urlKey := "dam-peplum-iris-do-ruou-vang-wf-dr-010"
+	expected := "https://fashion-demo.secomm.vn/dam-peplum-iris-do-ruou-vang-wf-dr-010.html"
+	got := formatProductPageURL(base, urlKey)
+	if got != expected {
+		t.Errorf("formatProductPageURL(%q, %q) = %q; want %q", base, urlKey, got, expected)
+	}
+
+	// Suffix already present
+	gotSuffix := formatProductPageURL(base, "dam-peplum-iris.html")
+	if gotSuffix != "https://fashion-demo.secomm.vn/dam-peplum-iris.html" {
+		t.Errorf("got %q, want no duplicate .html", gotSuffix)
+	}
+
+	// Empty base URL
+	gotRel := formatProductPageURL("", "/dam-peplum-iris")
+	if gotRel != "/dam-peplum-iris.html" {
+		t.Errorf("got %q, want /dam-peplum-iris.html", gotRel)
+	}
+
+	// 2. enrichProductURL with custom_attributes
+	prod := map[string]interface{}{
+		"sku":  "WF-DR-010",
+		"name": "Đầm peplum Iris",
+		"custom_attributes": []interface{}{
+			map[string]interface{}{
+				"attribute_code": "url_key",
+				"value":          "dam-peplum-iris-do-ruou-vang-wf-dr-010",
+			},
+		},
+	}
+	enrichProductURL(prod, base)
+	if prod["url"] != expected {
+		t.Errorf("prod[url] = %q, want %q", prod["url"], expected)
+	}
+	if prod["url_path"] != "/dam-peplum-iris-do-ruou-vang-wf-dr-010.html" {
+		t.Errorf("prod[url_path] = %q, want %q", prod["url_path"], "/dam-peplum-iris-do-ruou-vang-wf-dr-010.html")
+	}
+	if prod["url_key"] != "dam-peplum-iris-do-ruou-vang-wf-dr-010" {
+		t.Errorf("prod[url_key] = %q, want %q", prod["url_key"], "dam-peplum-iris-do-ruou-vang-wf-dr-010")
+	}
+}
+

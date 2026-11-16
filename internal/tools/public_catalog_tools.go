@@ -163,6 +163,11 @@ func handleMagentoPublicSearchProducts(args json.RawMessage) map[string]interfac
 	if err != nil {
 		return mcp.ToolResultError(err.Error())
 	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(data, &resp); err == nil {
+		enrichGraphQLProductsResponse(resp, client.BaseURL())
+		return jsonResult(resp)
+	}
 	return rawResult(data)
 }
 
@@ -185,6 +190,7 @@ func handleMagentoPublicGetProduct(args json.RawMessage) map[string]interface{} 
 				name
 				stock_status
 				only_x_left_in_stock
+				url_key
 				description {
 					html
 				}
@@ -237,6 +243,20 @@ func handleMagentoPublicGetProduct(args json.RawMessage) map[string]interface{} 
 							sku
 							name
 							stock_status
+							url_key
+							image {
+								url
+								label
+							}
+							small_image {
+								url
+								label
+							}
+							media_gallery {
+								url
+								label
+								disabled
+							}
 							price_range {
 								minimum_price {
 									final_price {
@@ -258,6 +278,11 @@ func handleMagentoPublicGetProduct(args json.RawMessage) map[string]interface{} 
 	data, err := client.Query(c, query, map[string]interface{}{"sku": sku})
 	if err != nil {
 		return mcp.ToolResultError(err.Error())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(data, &resp); err == nil {
+		enrichGraphQLProductsResponse(resp, client.BaseURL())
+		return jsonResult(resp)
 	}
 	return rawResult(data)
 }
@@ -288,6 +313,7 @@ func handleMagentoPublicGetOutfit(args json.RawMessage) map[string]interface{} {
 					sku
 					name
 					stock_status
+					url_key
 					small_image {
 						url
 						label
@@ -310,6 +336,7 @@ func handleMagentoPublicGetOutfit(args json.RawMessage) map[string]interface{} {
 					sku
 					name
 					stock_status
+					url_key
 					small_image {
 						url
 						label
@@ -332,6 +359,7 @@ func handleMagentoPublicGetOutfit(args json.RawMessage) map[string]interface{} {
 					sku
 					name
 					stock_status
+					url_key
 					small_image {
 						url
 						label
@@ -386,6 +414,16 @@ func handleMagentoPublicGetOutfit(args json.RawMessage) map[string]interface{} {
 	}
 
 	item := resp.Products.Items[0]
+	for _, it := range item.CrosssellProducts {
+		enrichGraphQLProductItem(it, client.BaseURL())
+	}
+	for _, it := range item.RelatedProducts {
+		enrichGraphQLProductItem(it, client.BaseURL())
+	}
+	for _, it := range item.UpsellProducts {
+		enrichGraphQLProductItem(it, client.BaseURL())
+	}
+
 	result := map[string]interface{}{
 		"source_sku":  item.SKU,
 		"source_name": item.Name,
@@ -601,5 +639,311 @@ func handleMagentoPublicGuestCart(args json.RawMessage) map[string]interface{} {
 
 	default:
 		return mcp.ToolResultError("invalid action; must be 'create', 'add', or 'get'")
+	}
+}
+
+func enrichGraphQLProductItem(item map[string]interface{}, baseURL string) {
+	if item == nil {
+		return
+	}
+	urlKey, _ := item["url_key"].(string)
+	if urlKey != "" {
+		item["url"] = formatProductPageURL(baseURL, urlKey)
+		item["url_path"] = formatProductPageURL("", urlKey)
+	}
+	// Enrich top-level image_url from small_image.url if available
+	if sm, ok := item["small_image"].(map[string]interface{}); ok {
+		if u, ok := sm["url"].(string); ok && u != "" {
+			item["image_url"] = u
+		}
+	}
+	if _, hasImg := item["image_url"]; !hasImg {
+		if im, ok := item["image"].(map[string]interface{}); ok {
+			if u, ok := im["url"].(string); ok && u != "" {
+				item["image_url"] = u
+			}
+		}
+	}
+	// Enrich variants if configurable
+	if variants, ok := item["variants"].([]interface{}); ok {
+		for _, v := range variants {
+			if vm, ok := v.(map[string]interface{}); ok {
+				if vprod, ok := vm["product"].(map[string]interface{}); ok {
+					enrichGraphQLProductItem(vprod, baseURL)
+				}
+			}
+		}
+	}
+
+	enrichGraphQLConfigurableOptions(item)
+}
+
+type gqlColorCollector struct {
+	label     string
+	vIdx      string
+	rawIdx    interface{}
+	hexCode   string
+	mainImage string
+	gallery   []string
+	seen      map[string]bool
+	vMap      map[string]interface{}
+}
+
+func enrichGraphQLConfigurableOptions(item map[string]interface{}) {
+	if item == nil {
+		return
+	}
+	rawOpts, ok := item["configurable_options"].([]interface{})
+	if !ok || len(rawOpts) == 0 {
+		return
+	}
+
+	var colorCollectors []*gqlColorCollector
+	collectorsByVIdx := make(map[string]*gqlColorCollector)
+	collectorsByLabel := make(map[string]*gqlColorCollector)
+	var availableColors []string
+	var availableSizes []string
+
+	for _, optItem := range rawOpts {
+		optMap, ok := optItem.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		attrCode := strings.ToLower(fmt.Sprintf("%v", optMap["attribute_code"]))
+		attrLabel := strings.ToLower(fmt.Sprintf("%v", optMap["label"]))
+
+		// Size option
+		if strings.Contains(attrCode, "size") || strings.Contains(attrLabel, "size") || strings.Contains(attrLabel, "kích thước") {
+			if vals, ok := optMap["values"].([]interface{}); ok {
+				for _, valItem := range vals {
+					if vm, ok := valItem.(map[string]interface{}); ok {
+						valLabel := strings.TrimSpace(fmt.Sprintf("%v", vm["label"]))
+						if valLabel != "" {
+							availableSizes = append(availableSizes, valLabel)
+						}
+					}
+				}
+			}
+		}
+
+		// Color option
+		if strings.Contains(attrCode, "color") || strings.Contains(attrLabel, "color") || strings.Contains(attrLabel, "màu") {
+			if vals, ok := optMap["values"].([]interface{}); ok {
+				for _, valItem := range vals {
+					vm, ok := valItem.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					valLabel := strings.TrimSpace(fmt.Sprintf("%v", vm["label"]))
+					if valLabel == "" {
+						continue
+					}
+					vIdxStr := fmt.Sprintf("%v", vm["value_index"])
+
+					var swatchHex string
+					if sw, ok := vm["swatch_data"].(map[string]interface{}); ok {
+						if val, ok := sw["value"].(string); ok && strings.HasPrefix(strings.TrimSpace(val), "#") {
+							swatchHex = strings.TrimSpace(val)
+						}
+					}
+					if swatchHex == "" {
+						swatchHex = resolveColorHex(valLabel)
+					}
+
+					col := &gqlColorCollector{
+						label:   valLabel,
+						vIdx:    vIdxStr,
+						rawIdx:  vm["value_index"],
+						hexCode: swatchHex,
+						seen:    make(map[string]bool),
+						vMap:    vm,
+					}
+					colorCollectors = append(colorCollectors, col)
+					collectorsByVIdx[vIdxStr] = col
+					collectorsByLabel[strings.ToLower(valLabel)] = col
+					availableColors = append(availableColors, valLabel)
+				}
+			}
+		}
+	}
+
+	if len(colorCollectors) == 0 {
+		return
+	}
+
+	addImage := func(col *gqlColorCollector, url string) {
+		clean := strings.TrimSpace(url)
+		if clean == "" || col.seen[clean] {
+			return
+		}
+		col.seen[clean] = true
+		col.gallery = append(col.gallery, clean)
+		if col.mainImage == "" {
+			col.mainImage = clean
+		}
+	}
+
+	// 1. Collect images from variants
+	if rawVariants, ok := item["variants"].([]interface{}); ok {
+		for _, varItem := range rawVariants {
+			varMap, ok := varItem.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			var matchedCol *gqlColorCollector
+			if attrs, ok := varMap["attributes"].([]interface{}); ok {
+				for _, aItem := range attrs {
+					if am, ok := aItem.(map[string]interface{}); ok {
+						aCode := strings.ToLower(fmt.Sprintf("%v", am["code"]))
+						aLabel := strings.ToLower(fmt.Sprintf("%v", am["label"]))
+						vIdx := fmt.Sprintf("%v", am["value_index"])
+						if col, exists := collectorsByVIdx[vIdx]; exists {
+							matchedCol = col
+							break
+						}
+						if strings.Contains(aCode, "color") || strings.Contains(aLabel, "color") || strings.Contains(aLabel, "màu") {
+							if col, exists := collectorsByLabel[aLabel]; exists {
+								matchedCol = col
+								break
+							}
+						}
+					}
+				}
+			}
+
+			if matchedCol != nil {
+				if prodMap, ok := varMap["product"].(map[string]interface{}); ok {
+					// small_image
+					if sm, ok := prodMap["small_image"].(map[string]interface{}); ok {
+						if u, _ := sm["url"].(string); u != "" {
+							addImage(matchedCol, u)
+						}
+					}
+					// image
+					if im, ok := prodMap["image"].(map[string]interface{}); ok {
+						if u, _ := im["url"].(string); u != "" {
+							addImage(matchedCol, u)
+						}
+					}
+					// image_url
+					if u, _ := prodMap["image_url"].(string); u != "" {
+						addImage(matchedCol, u)
+					}
+					// media_gallery
+					if mg, ok := prodMap["media_gallery"].([]interface{}); ok {
+						for _, mgItem := range mg {
+							if mm, ok := mgItem.(map[string]interface{}); ok {
+								if dis, _ := mm["disabled"].(bool); !dis {
+									if u, _ := mm["url"].(string); u != "" {
+										addImage(matchedCol, u)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Collect images from parent media_gallery with matching label or url
+	if mg, ok := item["media_gallery"].([]interface{}); ok {
+		for _, mgItem := range mg {
+			mm, ok := mgItem.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if dis, _ := mm["disabled"].(bool); dis {
+				continue
+			}
+			u, _ := mm["url"].(string)
+			if u == "" {
+				continue
+			}
+			lbl := strings.ToLower(fmt.Sprintf("%v", mm["label"]))
+			uLower := strings.ToLower(u)
+			for _, col := range colorCollectors {
+				cLower := strings.ToLower(col.label)
+				if (lbl != "" && strings.Contains(lbl, cLower)) || (cLower != "" && strings.Contains(uLower, cLower)) {
+					addImage(col, u)
+				}
+			}
+		}
+	}
+
+	// 3. Fallback: If only 1 color or a color matches parent context, fallback to item["image_url"]
+	parentImg, _ := item["image_url"].(string)
+	if parentImg != "" {
+		for _, col := range colorCollectors {
+			if col.mainImage == "" {
+				parentContext := strings.ToLower(fmt.Sprintf("%v %v", item["url_key"], item["name"]))
+				if strings.Contains(parentContext, strings.ToLower(col.label)) || len(colorCollectors) == 1 {
+					addImage(col, parentImg)
+				}
+			}
+		}
+	}
+
+	// 4. Build output arrays
+	var colorImages []map[string]interface{}
+	var rootColors []map[string]interface{}
+	for _, col := range colorCollectors {
+		colorImages = append(colorImages, map[string]interface{}{
+			"color":       col.label,
+			"color_code":  col.hexCode,
+			"value_index": col.rawIdx,
+			"image_url":   col.mainImage,
+			"gallery":     col.gallery,
+		})
+		rootColors = append(rootColors, map[string]interface{}{
+			"name":      col.label,
+			"code":      col.hexCode,
+			"imageUrl":  col.mainImage,
+			"image_url": col.mainImage,
+		})
+		if col.vMap != nil {
+			col.vMap["color_code"] = col.hexCode
+			col.vMap["image_url"] = col.mainImage
+			col.vMap["imageUrl"] = col.mainImage
+			col.vMap["gallery"] = col.gallery
+		}
+	}
+
+	if len(colorImages) > 0 {
+		item["color_images"] = colorImages
+	}
+	if len(rootColors) > 0 {
+		item["colors"] = rootColors
+	}
+	if len(availableColors) > 0 {
+		item["available_colors"] = availableColors
+	}
+	if len(availableSizes) > 0 {
+		item["available_sizes"] = availableSizes
+	}
+	item["configurable_product_options"] = rawOpts
+}
+
+func enrichGraphQLProductsResponse(resp map[string]interface{}, baseURL string) {
+	if resp == nil {
+		return
+	}
+	prods, ok := resp["products"].(map[string]interface{})
+	if !ok {
+		if data, ok := resp["data"].(map[string]interface{}); ok {
+			prods, _ = data["products"].(map[string]interface{})
+		}
+	}
+	if prods == nil {
+		return
+	}
+	items, ok := prods["items"].([]interface{})
+	if !ok {
+		return
+	}
+	for _, it := range items {
+		if itemMap, ok := it.(map[string]interface{}); ok {
+			enrichGraphQLProductItem(itemMap, baseURL)
+		}
 	}
 }
