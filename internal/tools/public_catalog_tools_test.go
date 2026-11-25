@@ -227,7 +227,7 @@ func TestHandleMagentoPublicGetOutfit(t *testing.T) {
 	}
 }
 
-func TestHandleMagentoPublicGuestCart(t *testing.T) {
+func TestHandleMagentoPublicCreateCart(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{
@@ -240,11 +240,17 @@ func TestHandleMagentoPublicGuestCart(t *testing.T) {
 
 	payload, _ := json.Marshal(map[string]interface{}{
 		"store_url": srv.URL,
-		"action":    "create",
 	})
 
-	res := handleMagentoPublicGuestCart(payload)
+	res := handleMagentoPublicCreateCart(payload)
 	if errText, ok := res["error_message"].(string); ok && errText != "" {
 		t.Fatalf("unexpected tool error: %s", errText)
+	}
+}
+
+func TestHandleMagentoPublicGetCart_requiresCartID(t *testing.T) {
+	res := handleMagentoPublicGetCart(json.RawMessage(`{}`))
+	if isErr, _ := res["isError"].(bool); !isErr {
+		t.Fatalf("expected error without cart_id, got %+v", res)
 	}
 }

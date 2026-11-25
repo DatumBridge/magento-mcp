@@ -121,6 +121,17 @@ func strArg(m map[string]interface{}, key string) string {
 	return strings.TrimSpace(fmt.Sprint(v))
 }
 
+// firstStrArg returns the first non-empty string among keys, so a planner
+// that names a field slightly differently (e.g. "keyword") still works.
+func firstStrArg(m map[string]interface{}, keys ...string) string {
+	for _, k := range keys {
+		if v := strArg(m, k); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func intArg(m map[string]interface{}, key string, def int) int {
 	v, ok := m[key]
 	if !ok || v == nil {

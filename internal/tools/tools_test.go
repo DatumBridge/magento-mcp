@@ -19,8 +19,8 @@ func clearToolFilterEnv(t *testing.T) {
 func TestRegisterFullScopeByDefault(t *testing.T) {
 	clearToolFilterEnv(t)
 	descs, handlers := tools.Register()
-	if len(descs) != 54 {
-		t.Fatalf("expected full tool scope (54 tools), got %d", len(descs))
+	if len(descs) != 56 {
+		t.Fatalf("expected full tool scope (56 tools), got %d", len(descs))
 	}
 
 	wantedTools := []string{
@@ -29,9 +29,10 @@ func TestRegisterFullScopeByDefault(t *testing.T) {
 		"magento_external_update_product", "magento_external_delete_product", "magento_external_list_product_types",
 		"magento_external_get_product_import_template", "magento_external_import_create_products", "magento_external_import_update_products",
 		"magento_external_get_media_import_status", "magento_external_get_related_products",
-		// Public Storefront (5)
+		// Public Storefront (7)
 		"magento_external_public_search_products", "magento_external_public_get_product", "magento_external_public_get_outfit",
-		"magento_external_public_list_categories", "magento_external_public_guest_cart",
+		"magento_external_public_list_categories", "magento_external_public_create_cart",
+		"magento_external_public_add_to_cart", "magento_external_public_get_cart",
 		// Orders (6)
 		"magento_external_list_orders", "magento_external_get_order", "magento_external_add_order_comment",
 		"magento_external_cancel_order", "magento_external_hold_order", "magento_external_verify_and_get_order",
@@ -575,5 +576,90 @@ func TestHandleListProductsWithCategoryID(t *testing.T) {
 	text := getToolResultText(res)
 	if !strings.Contains(text, "DRESS-01") {
 		t.Fatalf("expected DRESS-01 in result, got: %s", text)
+	}
+}
+
+// The agent planner only fills arguments marked required; without this the
+// public search tool was called with no input at all.
+func TestPublicSearchProductsRequiresSearch(t *testing.T) {
+	clearToolFilterEnv(t)
+	descs, _ := tools.Register()
+	for _, d := range descs {
+		if d.Name != "magento_external_public_search_products" {
+			continue
+		}
+		req, _ := d.InputSchema["required"].([]string)
+		if len(req) != 1 || req[0] != "search" {
+			t.Fatalf("expected required [search], got %v", d.InputSchema["required"])
+		}
+		props := d.InputSchema["properties"].(map[string]interface{})
+		cat := props["category_id"].(map[string]interface{})
+		if got := cat["x-datumbridge-related-tool"]; got != "magento_external_public_list_categories" {
+			t.Fatalf("public category_id should point to public tool, got %v", got)
+		}
+		return
+	}
+	t.Fatal("magento_external_public_search_products not registered")
+}
+
+// Every public tool whose call is useless without an argument must mark it
+// required, otherwise the agent planner sends no input.
+func TestPublicToolsRequiredArgs(t *testing.T) {
+	clearToolFilterEnv(t)
+	want := map[string]string{
+		"magento_external_public_search_products": "search",
+		"magento_external_public_get_product":     "sku",
+		"magento_external_public_get_outfit":      "sku",
+		"magento_external_public_add_to_cart":     "sku",
+		"magento_external_public_get_cart":        "cart_id",
+	}
+	descs, _ := tools.Register()
+	for _, d := range descs {
+		field, ok := want[d.Name]
+		if !ok {
+			continue
+		}
+		req, _ := d.InputSchema["required"].([]string)
+		if len(req) != 1 || req[0] != field {
+			t.Errorf("%s: expected required [%s], got %v", d.Name, field, d.InputSchema["required"])
+		}
+		delete(want, d.Name)
+	}
+	for name := range want {
+		t.Errorf("%s not registered", name)
+	}
+}
+
+func TestPublicAddToCartCreatesCartWhenMissing(t *testing.T) {
+	clearToolFilterEnv(t)
+	var calls []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query     string                 `json:"query"`
+			Variables map[string]interface{} `json:"variables"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(body.Query, "createEmptyCart") {
+			calls = append(calls, "create")
+			fmt.Fprint(w, `{"data":{"createEmptyCart":"cart-123"}}`)
+			return
+		}
+		calls = append(calls, "add:"+fmt.Sprint(body.Variables["cartId"]))
+		fmt.Fprint(w, `{"data":{"addProductsToCart":{"cart":{"id":"cart-123","total_quantity":1},"user_errors":[]}}}`)
+	}))
+	defer srv.Close()
+
+	_, handlers := tools.Register()
+	res := handlers["magento_external_public_add_to_cart"](json.RawMessage(`{"sku":"WF-SK-013","store_url":"` + srv.URL + `"}`))
+	out, _ := json.Marshal(res)
+	if strings.Contains(string(out), `"isError":true`) {
+		t.Fatalf("unexpected error: %s", out)
+	}
+	if len(calls) != 2 || calls[0] != "create" || calls[1] != "add:cart-123" {
+		t.Fatalf("expected create then add to cart-123, got %v", calls)
+	}
+	if !strings.Contains(string(out), "cart-123") {
+		t.Fatalf("result should carry cart_id: %s", out)
 	}
 }

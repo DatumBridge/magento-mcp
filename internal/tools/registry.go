@@ -25,7 +25,9 @@ var toolOutputs = map[string]string{
 	"magento_external_public_get_product":     "products, items",
 	"magento_external_public_get_outfit":      "crosssell_outfit, upsell_alternatives, related_accessories",
 	"magento_external_public_list_categories": "categoryList",
-	"magento_external_public_guest_cart":      "cart_id, cart",
+	"magento_external_public_create_cart":     "cart_id",
+	"magento_external_public_add_to_cart":     "cart_id, cart_created, cart, user_errors",
+	"magento_external_public_get_cart":        "cart_id, cart",
 	// Orders
 	"magento_external_list_orders":       "items, total_count",
 	"magento_external_get_order":         "entity_id, increment_id, status, grand_total, items",
@@ -97,7 +99,19 @@ var paramRelated = map[string]relatedMeta{
 	"source_code":   {tool: "magento_external_list_inventory_sources", field: "items[0].source_code"},
 }
 
+// publicParamRelated points public (guest) tools at other public tools, so the
+// agent never chains a guest flow into an admin tool that needs credentials.
+var publicParamRelated = map[string]relatedMeta{
+	"sku":         {tool: "magento_external_public_search_products", field: "products.items[0].sku"},
+	"category_id": {tool: "magento_external_public_list_categories", field: "categoryList[0].id"},
+	"cart_id":     {tool: "magento_external_public_create_cart", field: "cart_id"},
+}
+
 func annotateRelated(toolName string, props map[string]interface{}) {
+	related := paramRelated
+	if strings.HasPrefix(toolName, "magento_external_public_") {
+		related = publicParamRelated
+	}
 	for k, v := range props {
 		propMap, ok := v.(map[string]interface{})
 		if !ok {
@@ -106,7 +120,10 @@ func annotateRelated(toolName string, props map[string]interface{}) {
 		if k == "sku" && toolName == "magento_external_create_product" {
 			continue
 		}
-		if rel, found := paramRelated[k]; found {
+		if rel, found := related[k]; found {
+			if rel.tool == toolName {
+				continue
+			}
 			propMap["x-datumbridge-related-tool"] = rel.tool
 			propMap["x-datumbridge-output-field"] = rel.field
 		}

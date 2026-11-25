@@ -5,22 +5,23 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/datumbridge/magento-mcp/internal/magento"
 	"github.com/datumbridge/magento-mcp/internal/mcp"
 )
 
 func registerPublicCatalogTools(add toolAdder) {
 	add(
 		"magento_external_public_search_products",
-		"Search and list products for guest shoppers without authentication via Magento GraphQL. Supports keyword search, category filter, price range, and returns product attributes with website stock status (IN_STOCK / OUT_OF_STOCK). Requires at least one of search, category_id, price_from or price_to. To view one product whose SKU is known, call magento_external_public_get_product instead.",
+		"Search and list products for guest shoppers without authentication via Magento GraphQL. Supports keyword search, category filter, price range, and returns product attributes with website stock status (IN_STOCK / OUT_OF_STOCK). Always pass `search` with the product keyword from the shopper's message (e.g. {\"search\": \"blazer\"}); `search` may be empty only when category_id or a price filter is given. To view one product whose SKU is known, call magento_external_public_get_product instead.",
 		publicProps(map[string]interface{}{
-			"search":       map[string]interface{}{"type": "string", "description": "Search keyword from the shopper's message, e.g. \"blazer\" or \"chân váy\". Required unless category_id or a price filter is given."},
+			"search":       map[string]interface{}{"type": "string", "description": "REQUIRED. Product keyword taken from the shopper's message, e.g. \"blazer\", \"chân váy\", \"áo sơ mi trắng\". Never omit this field. Pass \"\" only when filtering purely by category_id or price."},
 			"category_id":  map[string]interface{}{"type": "string", "description": "Filter by Magento category ID"},
 			"price_from":   map[string]interface{}{"type": "number", "description": "Minimum price filter"},
 			"price_to":     map[string]interface{}{"type": "number", "description": "Maximum price filter"},
 			"page_size":    map[string]interface{}{"type": "integer", "description": "Number of products per page (default 20, max 50)"},
 			"current_page": map[string]interface{}{"type": "integer", "description": "Current page number (default 1)"},
 		}),
-		nil,
+		[]string{"search"},
 		handleMagentoPublicSearchProducts,
 	)
 
@@ -60,16 +61,33 @@ func registerPublicCatalogTools(add toolAdder) {
 	)
 
 	add(
-		"magento_external_public_guest_cart",
-		"Guest cart management for shoppers without authentication. Create an empty cart, add items, or view current cart.",
+		"magento_external_public_create_cart",
+		"Create a new empty guest cart for shoppers without authentication via Magento GraphQL. Returns cart_id. Usually not needed: magento_external_public_add_to_cart creates a cart automatically when cart_id is omitted.",
+		publicProps(map[string]interface{}{}),
+		nil,
+		handleMagentoPublicCreateCart,
+	)
+
+	add(
+		"magento_external_public_add_to_cart",
+		"Add a product to a guest cart without authentication via Magento GraphQL. Always pass the product `sku`. Pass `cart_id` to add to an existing cart; when omitted a new guest cart is created and its cart_id is returned.",
 		publicProps(map[string]interface{}{
-			"action":  map[string]interface{}{"type": "string", "description": "Cart action: 'create', 'add', or 'get'", "enum": []interface{}{"create", "add", "get"}},
-			"cart_id": map[string]interface{}{"type": "string", "description": "Guest Cart ID (required for 'add' and 'get')"},
-			"sku":     map[string]interface{}{"type": "string", "description": "Product SKU to add (for 'add')"},
-			"qty":     map[string]interface{}{"type": "number", "description": "Quantity to add (for 'add', default 1)"},
+			"sku":     map[string]interface{}{"type": "string", "description": "REQUIRED. Product SKU to add, copied exactly from the product, e.g. \"WF-SK-013\""},
+			"cart_id": map[string]interface{}{"type": "string", "description": "Existing guest cart ID. Omit to create a new cart automatically."},
+			"qty":     map[string]interface{}{"type": "number", "description": "Quantity to add (default 1)"},
 		}),
-		[]string{"action"},
-		handleMagentoPublicGuestCart,
+		[]string{"sku"},
+		handleMagentoPublicAddToCart,
+	)
+
+	add(
+		"magento_external_public_get_cart",
+		"Retrieve guest cart contents and totals without authentication via Magento GraphQL. Always pass `cart_id` returned by magento_external_public_add_to_cart or magento_external_public_create_cart.",
+		publicProps(map[string]interface{}{
+			"cart_id": map[string]interface{}{"type": "string", "description": "REQUIRED. Guest cart ID returned when the cart was created"},
+		}),
+		[]string{"cart_id"},
+		handleMagentoPublicGetCart,
 	)
 }
 
@@ -79,7 +97,7 @@ func handleMagentoPublicSearchProducts(args json.RawMessage) map[string]interfac
 		return mcp.ToolResultError(err.Error())
 	}
 
-	search := strArg(m, "search")
+	search := firstStrArg(m, "search", "keyword", "query", "q", "name")
 	categoryID := strArg(m, "category_id")
 	priceFrom := floatArg(m, "price_from", -1)
 	priceTo := floatArg(m, "price_to", -1)
@@ -93,7 +111,7 @@ func handleMagentoPublicSearchProducts(args json.RawMessage) map[string]interfac
 	}
 
 	if search == "" && categoryID == "" && priceFrom < 0 && priceTo < 0 {
-		return mcp.ToolResultError("search is required (or category_id / price_from / price_to); received no arguments. To view a product by SKU, call magento_external_public_get_product with {\"sku\": \"...\"}")
+		return mcp.ToolResultError("search is required: retry with {\"search\": \"<product keyword from the shopper's message>\"} (or pass category_id / price_from / price_to). To view a product by SKU, call magento_external_public_get_product with {\"sku\": \"...\"}")
 	}
 
 	variables := map[string]interface{}{
@@ -516,99 +534,66 @@ func handleMagentoPublicListCategories(args json.RawMessage) map[string]interfac
 	return rawResult(data)
 }
 
-func handleMagentoPublicGuestCart(args json.RawMessage) map[string]interface{} {
+func createGuestCart(client *magento.GraphQLClient) (string, error) {
+	c, cancel := ctx()
+	defer cancel()
+	data, err := client.Query(c, `mutation CreateCart { createEmptyCart }`, nil)
+	if err != nil {
+		return "", err
+	}
+	var resp struct {
+		CreateEmptyCart string `json:"createEmptyCart"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil || resp.CreateEmptyCart == "" {
+		return "", fmt.Errorf("could not create guest cart: %s", string(data))
+	}
+	return resp.CreateEmptyCart, nil
+}
+
+func handleMagentoPublicCreateCart(args json.RawMessage) map[string]interface{} {
+	client, _, err := graphqlClientFrom(args)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	cartID, err := createGuestCart(client)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	return jsonResult(map[string]interface{}{
+		"cart_id": cartID,
+		"message": "Guest cart created successfully",
+	})
+}
+
+func handleMagentoPublicAddToCart(args json.RawMessage) map[string]interface{} {
 	client, m, err := graphqlClientFrom(args)
 	if err != nil {
 		return mcp.ToolResultError(err.Error())
 	}
 
-	action := strings.ToLower(strArg(m, "action"))
+	sku := strArg(m, "sku")
+	if sku == "" {
+		return mcp.ToolResultError("sku is required: retry with {\"sku\": \"<product SKU>\"}")
+	}
+	qty := floatArg(m, "qty", 1)
+	if qty <= 0 {
+		qty = 1
+	}
+
 	cartID := strArg(m, "cart_id")
-
-	c, cancel := ctx()
-	defer cancel()
-
-	switch action {
-	case "create":
-		query := `mutation CreateCart { createEmptyCart }`
-		data, err := client.Query(c, query, nil)
+	created := false
+	if cartID == "" {
+		cartID, err = createGuestCart(client)
 		if err != nil {
 			return mcp.ToolResultError(err.Error())
 		}
-		var resp struct {
-			CreateEmptyCart string `json:"createEmptyCart"`
-		}
-		if err := json.Unmarshal(data, &resp); err == nil && resp.CreateEmptyCart != "" {
-			return jsonResult(map[string]interface{}{
-				"cart_id": resp.CreateEmptyCart,
-				"message": "Guest cart created successfully",
-			})
-		}
-		return rawResult(data)
+		created = true
+	}
 
-	case "add":
-		if cartID == "" {
-			return mcp.ToolResultError("cart_id is required for action 'add'")
-		}
-		sku := strArg(m, "sku")
-		if sku == "" {
-			return mcp.ToolResultError("sku is required for action 'add'")
-		}
-		qty := floatArg(m, "qty", 1)
-		if qty <= 0 {
-			qty = 1
-		}
-
-		mutation := `mutation AddToCart($cartId: String!, $cartItems: [CartItemInput!]!) {
-			addProductsToCart(cartId: $cartId, cartItems: $cartItems) {
-				cart {
-					id
-					total_quantity
-					items {
-						id
-						quantity
-						product {
-							sku
-							name
-						}
-						prices {
-							price {
-								value
-								currency
-							}
-						}
-					}
-				}
-				user_errors {
-					message
-				}
-			}
-		}`
-
-		variables := map[string]interface{}{
-			"cartId": cartID,
-			"cartItems": []map[string]interface{}{
-				{
-					"sku":      sku,
-					"quantity": qty,
-				},
-			},
-		}
-
-		data, err := client.Query(c, mutation, variables)
-		if err != nil {
-			return mcp.ToolResultError(err.Error())
-		}
-		return rawResult(data)
-
-	case "get":
-		if cartID == "" {
-			return mcp.ToolResultError("cart_id is required for action 'get'")
-		}
-		query := `query GetCart($cartId: String!) {
-			cart(cart_id: $cartId) {
+	mutation := `mutation AddToCart($cartId: String!, $cartItems: [CartItemInput!]!) {
+		addProductsToCart(cartId: $cartId, cartItems: $cartItems) {
+			cart {
 				id
-				is_virtual
 				total_quantity
 				items {
 					id
@@ -616,9 +601,6 @@ func handleMagentoPublicGuestCart(args json.RawMessage) map[string]interface{} {
 					product {
 						sku
 						name
-						small_image {
-							url
-						}
 					}
 					prices {
 						price {
@@ -627,23 +609,104 @@ func handleMagentoPublicGuestCart(args json.RawMessage) map[string]interface{} {
 						}
 					}
 				}
+			}
+			user_errors {
+				message
+			}
+		}
+	}`
+
+	variables := map[string]interface{}{
+		"cartId": cartID,
+		"cartItems": []map[string]interface{}{
+			{"sku": sku, "quantity": qty},
+		},
+	}
+
+	c, cancel := ctx()
+	defer cancel()
+
+	data, err := client.Query(c, mutation, variables)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+
+	var resp struct {
+		AddProductsToCart struct {
+			Cart       map[string]interface{}   `json:"cart"`
+			UserErrors []map[string]interface{} `json:"user_errors"`
+		} `json:"addProductsToCart"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return rawResult(data)
+	}
+	result := map[string]interface{}{
+		"cart_id":      cartID,
+		"cart_created": created,
+		"cart":         resp.AddProductsToCart.Cart,
+	}
+	if len(resp.AddProductsToCart.UserErrors) > 0 {
+		result["user_errors"] = resp.AddProductsToCart.UserErrors
+	}
+	return jsonResult(result)
+}
+
+func handleMagentoPublicGetCart(args json.RawMessage) map[string]interface{} {
+	client, m, err := graphqlClientFrom(args)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+
+	cartID := strArg(m, "cart_id")
+	if cartID == "" {
+		return mcp.ToolResultError("cart_id is required: retry with {\"cart_id\": \"...\"} from magento_external_public_add_to_cart or magento_external_public_create_cart")
+	}
+
+	query := `query GetCart($cartId: String!) {
+		cart(cart_id: $cartId) {
+			id
+			is_virtual
+			total_quantity
+			items {
+				id
+				quantity
+				product {
+					sku
+					name
+					small_image {
+						url
+					}
+				}
 				prices {
-					grand_total {
+					price {
 						value
 						currency
 					}
 				}
 			}
-		}`
-		data, err := client.Query(c, query, map[string]interface{}{"cartId": cartID})
-		if err != nil {
-			return mcp.ToolResultError(err.Error())
+			prices {
+				grand_total {
+					value
+					currency
+				}
+			}
 		}
-		return rawResult(data)
+	}`
 
-	default:
-		return mcp.ToolResultError("invalid action; must be 'create', 'add', or 'get'")
+	c, cancel := ctx()
+	defer cancel()
+
+	data, err := client.Query(c, query, map[string]interface{}{"cartId": cartID})
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
 	}
+	var resp struct {
+		Cart map[string]interface{} `json:"cart"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return rawResult(data)
+	}
+	return jsonResult(map[string]interface{}{"cart_id": cartID, "cart": resp.Cart})
 }
 
 func enrichGraphQLProductItem(item map[string]interface{}, baseURL string) {
