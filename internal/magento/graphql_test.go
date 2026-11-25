@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -54,6 +55,27 @@ func TestGraphQLClient_QuerySuccess(t *testing.T) {
 	}
 	if resp.Products.TotalCount != 1 || len(resp.Products.Items) != 1 || resp.Products.Items[0].SKU != "TEST-SKU" {
 		t.Errorf("unexpected parsed response: %+v", resp)
+	}
+}
+
+func TestGraphQLClient_GraphQLErrorWithNullData(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"errors": [{"message": "'search' or 'filter' input argument is required."}],
+			"data": {"products": null}
+		}`))
+	}))
+	defer srv.Close()
+
+	client, err := NewGraphQLClient(srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	_, err = client.Query(context.Background(), "query { products { total_count } }", nil)
+	if err == nil || !strings.Contains(err.Error(), "'search' or 'filter'") {
+		t.Fatalf("expected graphql error to surface, got %v", err)
 	}
 }
 

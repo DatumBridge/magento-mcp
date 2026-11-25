@@ -14,6 +14,8 @@ This tool is public and does not require authentication or API keys.
 
 - Call this tool when an unauthenticated guest shopper asks to search, browse, or filter products by name, keyword, category, or price range.
 - Does not require credentials_json or OAuth tokens.
+- Always pass at least one of `search`, `category_id`, `price_from`, `price_to`; a call with no arguments returns an error.
+- Do not use this tool to view one product whose SKU is known (e.g. "Xem chi tiết ... (SKU: WF-TP-004)"); call `magento_external_public_get_product` with `sku` instead.
 
 ## When to call
 

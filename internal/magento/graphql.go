@@ -143,7 +143,9 @@ func (c *GraphQLClient) Query(ctx context.Context, query string, variables map[s
 		return nil, fmt.Errorf("unmarshal graphql response: %w", err)
 	}
 
-	if len(gqlResp.Errors) > 0 && len(gqlResp.Data) == 0 {
+	// Magento answers resolver failures as {"data":{"products":null},"errors":[...]},
+	// so a data object whose fields are all null is treated as no data.
+	if len(gqlResp.Errors) > 0 && !hasNonNullData(gqlResp.Data) {
 		var errMsgs []string
 		for _, e := range gqlResp.Errors {
 			errMsgs = append(errMsgs, e.Message)
@@ -152,4 +154,22 @@ func (c *GraphQLClient) Query(ctx context.Context, query string, variables map[s
 	}
 
 	return gqlResp.Data, nil
+}
+
+// hasNonNullData reports whether a GraphQL `data` payload carries at least one non-null field.
+func hasNonNullData(data json.RawMessage) bool {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return false
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &fields); err != nil {
+		return true
+	}
+	for _, v := range fields {
+		if !bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
+			return true
+		}
+	}
+	return false
 }

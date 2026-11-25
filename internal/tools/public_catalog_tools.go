@@ -11,9 +11,9 @@ import (
 func registerPublicCatalogTools(add toolAdder) {
 	add(
 		"magento_external_public_search_products",
-		"Search and list products for guest shoppers without authentication via Magento GraphQL. Supports keyword search, category filter, price range, and returns product attributes with website stock status (IN_STOCK / OUT_OF_STOCK).",
+		"Search and list products for guest shoppers without authentication via Magento GraphQL. Supports keyword search, category filter, price range, and returns product attributes with website stock status (IN_STOCK / OUT_OF_STOCK). Requires at least one of search, category_id, price_from or price_to. To view one product whose SKU is known, call magento_external_public_get_product instead.",
 		publicProps(map[string]interface{}{
-			"search":       map[string]interface{}{"type": "string", "description": "Search keyword matching product name, SKU, or description"},
+			"search":       map[string]interface{}{"type": "string", "description": "Search keyword from the shopper's message, e.g. \"blazer\" or \"chân váy\". Required unless category_id or a price filter is given."},
 			"category_id":  map[string]interface{}{"type": "string", "description": "Filter by Magento category ID"},
 			"price_from":   map[string]interface{}{"type": "number", "description": "Minimum price filter"},
 			"price_to":     map[string]interface{}{"type": "number", "description": "Maximum price filter"},
@@ -26,9 +26,9 @@ func registerPublicCatalogTools(add toolAdder) {
 
 	add(
 		"magento_external_public_get_product",
-		"Retrieve full product details by SKU for guest shoppers without authentication via Magento GraphQL. Includes description, image gallery, available sizes, colors, and stock status.",
+		"Retrieve full product details by SKU for guest shoppers without authentication via Magento GraphQL. Includes description, image gallery, available sizes, colors, and stock status. Use this whenever the shopper's message contains a SKU, e.g. \"Xem chi tiết ... (SKU: WF-TP-004)\".",
 		publicProps(map[string]interface{}{
-			"sku": map[string]interface{}{"type": "string", "description": "Product SKU"},
+			"sku": map[string]interface{}{"type": "string", "description": "Product SKU copied exactly from the message, e.g. \"WF-TP-004\""},
 		}),
 		[]string{"sku"},
 		handleMagentoPublicGetProduct,
@@ -90,6 +90,10 @@ func handleMagentoPublicSearchProducts(args json.RawMessage) map[string]interfac
 	currentPage := intArg(m, "current_page", 1)
 	if currentPage <= 0 {
 		currentPage = 1
+	}
+
+	if search == "" && categoryID == "" && priceFrom < 0 && priceTo < 0 {
+		return mcp.ToolResultError("search is required (or category_id / price_from / price_to); received no arguments. To view a product by SKU, call magento_external_public_get_product with {\"sku\": \"...\"}")
 	}
 
 	variables := map[string]interface{}{
