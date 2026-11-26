@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/datumbridge/magento-mcp/internal/magento"
@@ -12,9 +13,10 @@ import (
 func registerPublicCatalogTools(add toolAdder) {
 	add(
 		"magento_external_public_search_products",
-		"Search and list products for guest shoppers without authentication via Magento GraphQL. Supports keyword search, category filter, price range, and returns product attributes with website stock status (IN_STOCK / OUT_OF_STOCK). Always pass `search` with the product keyword from the shopper's message (e.g. {\"search\": \"blazer\"}); `search` may be empty only when category_id or a price filter is given. To view one product whose SKU is known, call magento_external_public_get_product instead.",
+		"Search and list products for guest shoppers without authentication via Magento GraphQL. Supports keyword search, category filter, price range, and returns product attributes with website stock status (IN_STOCK / OUT_OF_STOCK). Always pass `search` with the product-type keyword from the shopper's message (e.g. {\"search\": \"blazer\"}) and put descriptive words in `style` (e.g. {\"search\": \"set chân váy\", \"style\": \"duyên dáng\"}). If no product matches every word, the tool retries with the product-type keywords and reports it in `search_meta`. `search` may be empty only when category_id or a price filter is given. To view one product whose SKU is known, call magento_external_public_get_product instead.",
 		publicProps(map[string]interface{}{
-			"search":       map[string]interface{}{"type": "string", "description": "REQUIRED. Product keyword taken from the shopper's message, e.g. \"blazer\", \"chân váy\", \"áo sơ mi trắng\". Never omit this field. Pass \"\" only when filtering purely by category_id or price."},
+			"search":       map[string]interface{}{"type": "string", "description": "REQUIRED. Product-type keyword only (noun), e.g. \"blazer\", \"chân váy\", \"set chân váy\", \"sơ mi\". Magento requires EVERY word to match, so put adjectives/occasions (duyên dáng, thanh lịch, đi làm, màu...) in `style`, not here: \"set chân váy duyên dáng\" → {\"search\": \"set chân váy\", \"style\": \"duyên dáng\"}. Never omit this field. Pass \"\" only when filtering purely by category_id or price."},
+			"style":        map[string]interface{}{"type": "string", "description": "Optional descriptive words (style, occasion, color, material) such as \"duyên dáng\", \"đi làm\", \"thanh lịch\". They are matched against product name and description; matching items are listed first and flagged matches_style=true."},
 			"category_id":  map[string]interface{}{"type": "string", "description": "Filter by Magento category ID"},
 			"price_from":   map[string]interface{}{"type": "number", "description": "Minimum price filter"},
 			"price_to":     map[string]interface{}{"type": "number", "description": "Maximum price filter"},
@@ -140,6 +142,289 @@ func handleMagentoPublicSearchProducts(args json.RawMessage) map[string]interfac
 		variables["filter"] = filter
 	}
 
+	resp, err := runPublicProductSearch(client, variables)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	if search == "" {
+		return jsonResult(resp)
+	}
+
+	// Magento full-text search needs every word in the same field, so
+	// "set chân váy duyên dáng" finds nothing although "set chân váy" has 9 hits.
+	// Relax to the product-type keywords and rank by the descriptive words.
+	style := firstStrArg(m, "style", "style_keywords")
+	plan := planProductSearch(search, style)
+	meta := map[string]interface{}{"requested_search": search, "search_used": search, "relaxed": false}
+	if style != "" {
+		meta["requested_style"] = style
+	}
+	if productsTotal(resp) == 0 {
+		if r, used := relaxedProductSearch(client, variables, search, plan.relaxed); r != nil {
+			resp = r
+			meta["search_used"] = used
+			meta["relaxed"] = true
+			meta["note"] = fmt.Sprintf("No product matched every word of %q; showing results for %q. Items with matches_style=true also match the descriptive words. Tell the shopper these are the closest matches.", search, used)
+		}
+	}
+	// Without relaxation every item already matched all words of `search`;
+	// only an explicit `style` still needs ranking then.
+	if len(plan.styleTerms) > 0 && productsTotal(resp) > 0 && (meta["relaxed"] == true || style != "") {
+		resp = applyStyleRanking(client, resp, meta, plan.styleTerms, filter, pageSize, currentPage)
+	}
+	resp["search_meta"] = meta
+	return jsonResult(resp)
+}
+
+// applyStyleRanking ranks over the first 50 hits (not just this page) by the
+// descriptive words, then trims back to pageSize.
+func applyStyleRanking(client *magento.GraphQLClient, resp, meta map[string]interface{}, styleTerms []string, filter map[string]interface{}, pageSize, currentPage int) map[string]interface{} {
+	meta["style_terms"] = styleTerms
+	if currentPage == 1 && pageSize < 50 && productsTotal(resp) > pageSize {
+		wide := map[string]interface{}{"search": meta["search_used"], "pageSize": 50, "currentPage": 1}
+		if len(filter) > 0 {
+			wide["filter"] = filter
+		}
+		if r, err := runPublicProductSearch(client, wide); err == nil && productsTotal(r) > 0 {
+			resp = r
+		}
+	}
+	meta["style_matched"] = rankByStyle(client, resp, styleTerms, filter)
+	trimProductItems(resp, pageSize)
+	return resp
+}
+
+// relaxedProductSearch tries the fallback queries in order and returns the
+// first response that has products.
+func relaxedProductSearch(client *magento.GraphQLClient, variables map[string]interface{}, original string, candidates []string) (map[string]interface{}, string) {
+	for _, cand := range candidates {
+		if strings.EqualFold(cand, original) {
+			continue
+		}
+		vars := map[string]interface{}{}
+		for k, v := range variables {
+			vars[k] = v
+		}
+		vars["search"] = cand
+		r, err := runPublicProductSearch(client, vars)
+		if err == nil && productsTotal(r) > 0 {
+			return r, cand
+		}
+	}
+	return nil, ""
+}
+
+// productSearchPlan splits a shopper phrase into product-type keywords
+// (searched) and descriptive words (used for ranking).
+type productSearchPlan struct {
+	relaxed    []string
+	styleTerms []string
+}
+
+// Longest phrases first so "áo sơ mi" wins over "áo".
+var productTypePhrases = []string{
+	"áo sơ mi", "áo dệt kim", "áo hai dây", "áo khoác", "áo blouse", "áo thun", "áo kiểu", "áo len", "áo gile", "áo vest", "áo polo", "áo croptop",
+	"chân váy", "quần âu", "quần tây", "quần jeans", "quần jean", "quần short", "quần culottes", "quần suông", "quần ống rộng", "phụ kiện", "thắt lưng",
+	"sơ mi", "blouse", "blazer", "gile", "vest", "croptop", "cardigan", "jumpsuit", "corset", "set", "đầm", "váy", "quần", "áo", "túi", "giày", "khăn",
+}
+
+var searchStopwords = map[string]bool{
+	"tìm": true, "kiếm": true, "cho": true, "mình": true, "tôi": true, "em": true, "anh": true, "chị": true, "bạn": true, "muốn": true, "cần": true,
+	"mua": true, "xem": true, "mẫu": true, "kiểu": true, "đồ": true, "cái": true, "chiếc": true, "một": true, "1": true, "nào": true, "có": true,
+	"không": true, "giúp": true, "với": true, "ạ": true, "nhé": true, "nha": true, "shop": true, "gì": true, "các": true, "những": true, "được": true,
+	"để": true, "hãy": true, "gợi": true, "ý": true, "thử": true, "ơi": true, "loại": true, "bộ": true,
+}
+
+func searchTokens(s string) []string {
+	s = strings.ToLower(s)
+	s = strings.Map(func(r rune) rune {
+		if strings.ContainsRune(",.;:!?\"'()[]{}/\\|", r) {
+			return ' '
+		}
+		return r
+	}, s)
+	return strings.Fields(s)
+}
+
+// matchProductType returns the longest product-type phrase at the start of
+// toks and how many tokens it spans.
+func matchProductType(toks []string) (string, int) {
+	for _, p := range productTypePhrases {
+		pt := strings.Fields(p)
+		if len(pt) <= len(toks) && strings.Join(toks[:len(pt)], " ") == p {
+			return p, len(pt)
+		}
+	}
+	return "", 0
+}
+
+func planProductSearch(search, style string) productSearchPlan {
+	toks := searchTokens(search)
+	var types, rest []string
+	for i := 0; i < len(toks); {
+		if hit, n := matchProductType(toks[i:]); n > 0 {
+			types = append(types, hit)
+			i += n
+			continue
+		}
+		if !searchStopwords[toks[i]] {
+			rest = append(rest, toks[i])
+		}
+		i++
+	}
+
+	plan := productSearchPlan{}
+	if len(types) > 0 {
+		plan.styleTerms = append(plan.styleTerms, rest...)
+	}
+	plan.styleTerms = append(plan.styleTerms, searchTokens(style)...)
+
+	seen := map[string]bool{}
+	add := func(q string) {
+		q = strings.TrimSpace(q)
+		if q != "" && !seen[q] {
+			seen[q] = true
+			plan.relaxed = append(plan.relaxed, q)
+		}
+	}
+	if len(types) > 0 {
+		add(strings.Join(types, " "))
+		// Most specific single type first: "chân váy" before "set".
+		for i := len(types) - 1; i >= 0; i-- {
+			if types[i] != "set" && types[i] != "áo" && types[i] != "quần" {
+				add(types[i])
+			}
+		}
+		for _, t := range types {
+			add(t)
+		}
+	} else {
+		add(strings.Join(rest, " "))
+		// Vietnamese nouns are usually the leading 2 syllables ("chân váy", "đầm").
+		if len(rest) > 2 {
+			add(strings.Join(rest[:2], " "))
+		}
+	}
+	plan.styleTerms = dedupStrings(plan.styleTerms)
+	return plan
+}
+
+func dedupStrings(in []string) []string {
+	seen := map[string]bool{}
+	out := in[:0]
+	for _, s := range in {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// styleChunks groups descriptive tokens into Vietnamese compound words
+// ("đi tiệc sang trọng" → "đi tiệc", "sang trọng"), at most 3 chunks.
+func styleChunks(terms []string) []string {
+	if len(terms) <= 2 {
+		return []string{strings.Join(terms, " ")}
+	}
+	var out []string
+	for i := 0; i < len(terms) && len(out) < 3; i += 2 {
+		end := i + 2
+		if end > len(terms) {
+			end = len(terms)
+		}
+		out = append(out, strings.Join(terms[i:end], " "))
+	}
+	return out
+}
+
+// rankByStyle searches each descriptive chunk on its own and intersects by
+// SKU. Magento needs all words in the same field, so "chân váy duyên dáng"
+// misses a skirt whose name has "chân váy" and description has "duyên dáng".
+// Items matching more chunks move to the front with matches_style=true.
+func rankByStyle(client *magento.GraphQLClient, resp map[string]interface{}, styleTerms []string, filter map[string]interface{}) int {
+	score := map[string]int{}
+	for _, chunk := range styleChunks(styleTerms) {
+		for _, sku := range styleSKUs(client, chunk, filter) {
+			score[sku]++
+		}
+	}
+	items := productsItems(resp)
+	sort.SliceStable(items, func(i, j int) bool {
+		si, _ := items[i]["sku"].(string)
+		sj, _ := items[j]["sku"].(string)
+		return score[si] > score[sj]
+	})
+	matched := 0
+	sorted := make([]interface{}, len(items))
+	for i, it := range items {
+		if sku, _ := it["sku"].(string); score[sku] > 0 {
+			it["matches_style"] = true
+			matched++
+		}
+		sorted[i] = it
+	}
+	if prods, ok := resp["products"].(map[string]interface{}); ok {
+		prods["items"] = sorted
+	}
+	return matched
+}
+
+// styleSKUs returns the SKUs matching one descriptive chunk (first 2 pages).
+func styleSKUs(client *magento.GraphQLClient, chunk string, filter map[string]interface{}) []string {
+	var out []string
+	for page := 1; page <= 2; page++ {
+		vars := map[string]interface{}{"search": chunk, "pageSize": 50, "currentPage": page}
+		if len(filter) > 0 {
+			vars["filter"] = filter
+		}
+		r, err := runPublicProductSearch(client, vars)
+		if err != nil {
+			break
+		}
+		for _, it := range productsItems(r) {
+			if sku, _ := it["sku"].(string); sku != "" {
+				out = append(out, sku)
+			}
+		}
+		if productsTotal(r) <= page*50 {
+			break
+		}
+	}
+	return out
+}
+
+func trimProductItems(resp map[string]interface{}, n int) {
+	prods, _ := resp["products"].(map[string]interface{})
+	if items, ok := prods["items"].([]interface{}); ok && len(items) > n {
+		prods["items"] = items[:n]
+		if pi, ok := prods["page_info"].(map[string]interface{}); ok && n > 0 {
+			pi["total_pages"] = (productsTotal(resp) + n - 1) / n
+		}
+	}
+}
+
+func productsItems(resp map[string]interface{}) []map[string]interface{} {
+	prods, _ := resp["products"].(map[string]interface{})
+	raw, _ := prods["items"].([]interface{})
+	out := make([]map[string]interface{}, 0, len(raw))
+	for _, it := range raw {
+		if m, ok := it.(map[string]interface{}); ok {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func productsTotal(resp map[string]interface{}) int {
+	prods, _ := resp["products"].(map[string]interface{})
+	if n, ok := prods["total_count"].(float64); ok {
+		return int(n)
+	}
+	return len(productsItems(resp))
+}
+
+func runPublicProductSearch(client *magento.GraphQLClient, variables map[string]interface{}) (map[string]interface{}, error) {
 	query := `query SearchProducts($search: String, $filter: ProductAttributeFilterInput, $pageSize: Int, $currentPage: Int) {
 		products(search: $search, filter: $filter, pageSize: $pageSize, currentPage: $currentPage) {
 			total_count
@@ -183,14 +468,17 @@ func handleMagentoPublicSearchProducts(args json.RawMessage) map[string]interfac
 
 	data, err := client.Query(c, query, variables)
 	if err != nil {
-		return mcp.ToolResultError(err.Error())
+		return nil, err
 	}
 	var resp map[string]interface{}
-	if err := json.Unmarshal(data, &resp); err == nil {
-		enrichGraphQLProductsResponse(resp, client.BaseURL())
-		return jsonResult(resp)
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode products response: %w", err)
 	}
-	return rawResult(data)
+	if resp == nil {
+		resp = map[string]interface{}{}
+	}
+	enrichGraphQLProductsResponse(resp, client.BaseURL())
+	return resp, nil
 }
 
 func handleMagentoPublicGetProduct(args json.RawMessage) map[string]interface{} {

@@ -663,3 +663,137 @@ func TestPublicAddToCartCreatesCartWhenMissing(t *testing.T) {
 		t.Fatalf("result should carry cart_id: %s", out)
 	}
 }
+
+// fakeCatalogServer mimics Magento full-text search: every word of `search`
+// must appear in the same field (name or description).
+func fakeCatalogServer(t *testing.T, searches *[]string) *httptest.Server {
+	t.Helper()
+	type prod struct{ sku, name, desc string }
+	catalog := []prod{
+		{"SK-1", "Chân váy tulip Ayla", "dáng tulip trẻ trung"},
+		{"SK-2", "Chân váy đuôi cá Elodie", "tôn dáng duyên dáng nữ tính"},
+		{"ST-1", "Set blouse và chân váy Iris", "thanh lịch đi làm"},
+		{"DR-1", "Đầm wrap Emilia", "duyên dáng"},
+	}
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Variables map[string]interface{} `json:"variables"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		s, _ := body.Variables["search"].(string)
+		*searches = append(*searches, s)
+		words := strings.Fields(strings.ToLower(s))
+		inField := func(f string) bool {
+			for _, wd := range words {
+				if !strings.Contains(strings.ToLower(f), wd) {
+					return false
+				}
+			}
+			return true
+		}
+		items := []map[string]interface{}{}
+		for _, p := range catalog {
+			if inField(p.name) || inField(p.desc) {
+				items = append(items, map[string]interface{}{"sku": p.sku, "name": p.name})
+			}
+		}
+		out, _ := json.Marshal(map[string]interface{}{"data": map[string]interface{}{"products": map[string]interface{}{
+			"total_count": len(items), "items": items, "page_info": map[string]interface{}{"current_page": 1, "total_pages": 1},
+		}}})
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(out)
+	}))
+}
+
+func publicSearch(t *testing.T, srvURL string, args map[string]interface{}) map[string]interface{} {
+	t.Helper()
+	args["store_url"] = srvURL
+	raw, _ := json.Marshal(args)
+	_, handlers := tools.Register()
+	res, _ := json.Marshal(handlers["magento_external_public_search_products"](raw))
+	var env struct {
+		IsError bool                    `json:"isError"`
+		Content []struct{ Text string } `json:"content"`
+	}
+	_ = json.Unmarshal(res, &env)
+	if env.IsError || len(env.Content) == 0 {
+		t.Fatalf("unexpected tool result: %s", res)
+	}
+	var out map[string]interface{}
+	if err := json.Unmarshal([]byte(env.Content[0].Text), &out); err != nil {
+		t.Fatalf("decode: %v (%s)", err, env.Content[0].Text)
+	}
+	return out
+}
+
+func itemSKUs(out map[string]interface{}) []string {
+	var skus []string
+	for _, it := range out["products"].(map[string]interface{})["items"].([]interface{}) {
+		skus = append(skus, it.(map[string]interface{})["sku"].(string))
+	}
+	return skus
+}
+
+func TestPublicSearchRelaxesDescriptiveWords(t *testing.T) {
+	clearToolFilterEnv(t)
+	var searches []string
+	srv := fakeCatalogServer(t, &searches)
+	defer srv.Close()
+
+	out := publicSearch(t, srv.URL, map[string]interface{}{"search": "chân váy duyên dáng"})
+	meta := out["search_meta"].(map[string]interface{})
+	if meta["relaxed"] != true || meta["search_used"] != "chân váy" {
+		t.Fatalf("expected relaxed search on \"chân váy\", got %v (searches %v)", meta, searches)
+	}
+	skus := itemSKUs(out)
+	if len(skus) != 3 || skus[0] != "SK-2" {
+		t.Fatalf("expected 3 skirts with SK-2 (duyên dáng in description) first, got %v", skus)
+	}
+	first := out["products"].(map[string]interface{})["items"].([]interface{})[0].(map[string]interface{})
+	if first["matches_style"] != true || meta["style_matched"].(float64) != 1 {
+		t.Fatalf("expected SK-2 flagged matches_style, got %v / %v", first, meta)
+	}
+}
+
+func TestPublicSearchSetKeepsBothProductTypes(t *testing.T) {
+	clearToolFilterEnv(t)
+	var searches []string
+	srv := fakeCatalogServer(t, &searches)
+	defer srv.Close()
+
+	out := publicSearch(t, srv.URL, map[string]interface{}{"search": "set chân váy duyên dáng"})
+	meta := out["search_meta"].(map[string]interface{})
+	if meta["search_used"] != "set chân váy" {
+		t.Fatalf("expected search_used \"set chân váy\", got %v", meta["search_used"])
+	}
+	if skus := itemSKUs(out); len(skus) != 1 || skus[0] != "ST-1" {
+		t.Fatalf("expected only the set, got %v", skus)
+	}
+}
+
+func TestPublicSearchExactMatchIsUntouched(t *testing.T) {
+	clearToolFilterEnv(t)
+	var searches []string
+	srv := fakeCatalogServer(t, &searches)
+	defer srv.Close()
+
+	out := publicSearch(t, srv.URL, map[string]interface{}{"search": "chân váy"})
+	if meta := out["search_meta"].(map[string]interface{}); meta["relaxed"] != false {
+		t.Fatalf("exact match should not relax: %v", meta)
+	}
+	if len(searches) != 1 {
+		t.Fatalf("exact match should cost one query, got %v", searches)
+	}
+}
+
+func TestPublicSearchExplicitStyleRanks(t *testing.T) {
+	clearToolFilterEnv(t)
+	var searches []string
+	srv := fakeCatalogServer(t, &searches)
+	defer srv.Close()
+
+	out := publicSearch(t, srv.URL, map[string]interface{}{"search": "chân váy", "style": "duyên dáng"})
+	if skus := itemSKUs(out); len(skus) != 3 || skus[0] != "SK-2" {
+		t.Fatalf("style should move SK-2 first, got %v", skus)
+	}
+}
