@@ -116,12 +116,7 @@ func (c *GraphQLClient) Query(ctx context.Context, query string, variables map[s
 		return nil, fmt.Errorf("create http request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-	req.Header.Set("Sec-Ch-Ua", `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`)
-	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
-	req.Header.Set("Sec-Ch-Ua-Platform", `"macOS"`)
+	setBrowserHeaders(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -172,4 +167,46 @@ func hasNonNullData(data json.RawMessage) bool {
 		}
 	}
 	return false
+}
+
+// setBrowserHeaders makes storefront calls look like the browser fingerprint the
+// TLS profile already claims, so WAFs such as Cloudflare let them through.
+func setBrowserHeaders(req *fhttp.Request) {
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+	req.Header.Set("Sec-Ch-Ua", `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`)
+	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
+	req.Header.Set("Sec-Ch-Ua-Platform", `"macOS"`)
+}
+
+// PostStorefrontJSON POSTs a JSON body to a public storefront path (e.g.
+// "/weaver/order/lookup", served by the DatumBridge_Chatbot module) and returns
+// the HTTP status and raw body. 4xx answers are returned, not turned into
+// errors, because the module explains them in the JSON body.
+func (c *GraphQLClient) PostStorefrontJSON(ctx context.Context, path string, body interface{}) (int, []byte, error) {
+	if c == nil || c.endpoint == "" {
+		return 0, nil, fmt.Errorf("storefront client not configured")
+	}
+	reqBody, err := json.Marshal(body)
+	if err != nil {
+		return 0, nil, fmt.Errorf("marshal request: %w", err)
+	}
+	endpoint := c.BaseURL() + "/" + strings.TrimLeft(path, "/")
+	req, err := fhttp.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(reqBody))
+	if err != nil {
+		return 0, nil, fmt.Errorf("create http request: %w", err)
+	}
+	setBrowserHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, nil, fmt.Errorf("execute request: %w", err)
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return resp.StatusCode, nil, fmt.Errorf("read response body: %w", err)
+	}
+	return resp.StatusCode, data, nil
 }

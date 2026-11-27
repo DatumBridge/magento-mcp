@@ -21,19 +21,29 @@ var toolOutputs = map[string]string{
 	"magento_external_get_media_import_status":     "is_running, total_queued, completed, failed, pending, recent_warnings",
 	"magento_external_get_related_products":        "source_sku, link_type, items",
 	// Public / Guest Storefront (GraphQL No-Auth)
-	"magento_external_public_search_products": "products, total_count",
-	"magento_external_public_get_product":     "products, items",
-	"magento_external_public_get_outfit":      "crosssell_outfit, upsell_alternatives, related_accessories",
-	"magento_external_public_list_categories": "categoryList",
-	"magento_external_public_create_cart":     "cart_id",
-	"magento_external_public_add_to_cart":     "cart_id, cart_created, cart, user_errors",
-	"magento_external_public_get_cart":        "cart_id, cart",
+	"magento_external_public_search_products":      "products, total_count",
+	"magento_external_public_get_product":          "products, items",
+	"magento_external_public_get_outfit":           "crosssell_outfit, upsell_alternatives, related_accessories",
+	"magento_external_public_list_categories":      "categoryList",
+	"magento_external_public_create_cart":          "cart_id",
+	"magento_external_public_add_to_cart":          "cart_id, cart_created, cart, user_errors",
+	"magento_external_public_get_cart":             "cart_id, cart",
+	"magento_external_public_lookup_order":         "verified, order, card, order_access_token, token_expires_at",
+	"magento_external_public_update_delivery":      "success, changes, message, card",
+	"magento_external_public_get_exchange_options": "success, eligible, item, card",
+	"magento_external_public_create_exchange":      "success, message, request, card",
+	"magento_external_public_get_exchange_status":  "success, order_number, count, cards",
+	"magento_external_public_my_orders":            "success, total_count, orders, card",
+	"magento_external_public_my_order_detail":      "verified, order, card, order_access_token, token_expires_at",
+	"magento_external_public_get_ticket_options":   "success, existing_tickets, card",
+	"magento_external_public_create_ticket":        "success, message, ticket, card",
+	"magento_external_public_get_ticket_status":    "success, order_number, count, cards",
 	// Orders
-	"magento_external_list_orders":       "items, total_count",
-	"magento_external_get_order":         "entity_id, increment_id, status, grand_total, items",
-	"magento_external_add_order_comment": "",
-	"magento_external_cancel_order":      "",
-	"magento_external_hold_order":        "",
+	"magento_external_list_orders":          "items, total_count",
+	"magento_external_get_order":            "entity_id, increment_id, status, grand_total, items",
+	"magento_external_add_order_comment":    "",
+	"magento_external_cancel_order":         "",
+	"magento_external_hold_order":           "",
 	"magento_external_verify_and_get_order": "verified, order_number, status, total_amount, shipping, items",
 	// Customers
 	"magento_external_list_customers":  "items, total_count",
@@ -187,6 +197,10 @@ func Register() ([]mcp.ToolDesc, map[string]mcp.ToolHandler) {
 	registerProductMediaTools(add)
 	registerCartTools(add)
 	registerPublicCatalogTools(add)
+	registerPublicOrderTools(add)
+	registerPublicExchangeTools(add)
+	registerPublicCustomerTools(add)
+	registerPublicTicketTools(add)
 
 	return descs, handlers
 }

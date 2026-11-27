@@ -19,8 +19,8 @@ func clearToolFilterEnv(t *testing.T) {
 func TestRegisterFullScopeByDefault(t *testing.T) {
 	clearToolFilterEnv(t)
 	descs, handlers := tools.Register()
-	if len(descs) != 56 {
-		t.Fatalf("expected full tool scope (56 tools), got %d", len(descs))
+	if len(descs) != 66 {
+		t.Fatalf("expected full tool scope (66 tools), got %d", len(descs))
 	}
 
 	wantedTools := []string{

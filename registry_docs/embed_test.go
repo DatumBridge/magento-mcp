@@ -64,6 +64,19 @@ var allTools = []string{
 	"magento_external_create_empty_cart",
 	"magento_external_get_cart",
 	"magento_external_add_cart_item",
+	// Public order support (5)
+	"magento_external_public_lookup_order",
+	"magento_external_public_update_delivery",
+	"magento_external_public_get_exchange_options",
+	"magento_external_public_create_exchange",
+	"magento_external_public_get_exchange_status",
+	// Logged-in customer (2)
+	"magento_external_public_my_orders",
+	"magento_external_public_my_order_detail",
+	// Complaints (3)
+	"magento_external_public_get_ticket_options",
+	"magento_external_public_create_ticket",
+	"magento_external_public_get_ticket_status",
 }
 
 func TestMarkdown_AllToolsExist(t *testing.T) {
